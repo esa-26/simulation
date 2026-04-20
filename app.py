@@ -5,18 +5,21 @@ from datetime import datetime
 
 st.set_page_config(page_title="Symulator Ekstraklasy Pro", page_icon="⚽", layout="wide")
 
-# 🌟 MAGIA CSS: Działa tylko na ekranach mobilnych (max-width: 768px)
+# 🌟 MAGIA CSS
 st.markdown("""
 <style>
-/* Ściskamy kropki (1 X 2), aby nigdy nie łamały się do nowej linii (dla PC i mobile) */
 div[data-testid="stVerticalBlockBorderWrapper"] div[role="radiogroup"] {
+    flex-direction: row !important;
     flex-wrap: nowrap !important;
-    gap: 8px !important;
+    gap: 15px !important;
+    justify-content: center !important;
 }
-
-/* Reguły TYLKO dla telefonów */
+div[data-testid="stVerticalBlockBorderWrapper"] div[role="radiogroup"] label {
+    white-space: nowrap !important;
+}
 @media (max-width: 768px) {
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] {
+        flex-direction: row !important; 
         flex-wrap: nowrap !important;
         align-items: center !important;
     }
@@ -24,10 +27,11 @@ div[data-testid="stVerticalBlockBorderWrapper"] div[role="radiogroup"] {
         min-width: 0 !important;
         width: auto !important;
         flex: 1 1 0% !important;
-        padding: 0 2px !important;
+        padding: 0 1px !important;
     }
-    div[data-testid="stVerticalBlockBorderWrapper"] p {
-        font-size: 13px !important;
+    div[data-testid="stVerticalBlockBorderWrapper"] p, 
+    div[data-testid="stVerticalBlockBorderWrapper"] div {
+        font-size: 12px !important;
     }
 }
 </style>
@@ -73,7 +77,6 @@ wybrana_data = st.sidebar.date_input("Pokaż bazową tabelę na dzień:", dateti
 
 st.sidebar.divider()
 tryb_symulacji = st.sidebar.radio("🕹️ Tryb symulacji:", ["1X2 (Szybki)", "Dokładny wynik"])
-
 typ_tabeli = st.sidebar.radio("🔍 Klasyfikacja:", ["Wszystkie mecze", "Tylko Domowe", "Tylko Wyjazdowe"])
 limit_meczow = st.sidebar.number_input("Tabela Formy (ostatnie X):", min_value=0, max_value=34, value=0)
 uwzglednij_kary = st.sidebar.checkbox("Kara -5 pkt (Lechia)", value=True)
@@ -104,6 +107,7 @@ def generuj_tabele(lista, data_g, sym, typ, lim, kary):
     stat = {}
     licz = {}
     wm = []
+    
     for m in lista:
         m_id = str(m.get('id', ''))
         st_obj = m.get('status', {})
@@ -119,38 +123,68 @@ def generuj_tabele(lista, data_g, sym, typ, lim, kary):
             wm.append({'d': dm, 'h': m['home']['name'], 'a': m['away']['name'], 'gh': gh, 'ga': ga})
     
     wm.sort(key=lambda x: x['d'], reverse=True)
+    
     def add(t, gz, gs):
-        if t not in stat: stat[t] = {'M': 0, 'PKT': 0, 'BZ': 0, 'BS': 0}; licz[t] = 0
+        if t not in stat: 
+            stat[t] = {'M': 0, 'PKT': 0, 'Z': 0, 'R': 0, 'P': 0, 'BZ': 0, 'BS': 0, 'Historia': []}
+            licz[t] = 0
         if lim > 0 and licz[t] >= lim: return
+        
         stat[t]['M']+=1; licz[t]+=1; stat[t]['BZ']+=gz; stat[t]['BS']+=gs
-        if gz>gs: stat[t]['PKT']+=3
-        elif gz==gs: stat[t]['PKT']+=1
+        
+        if gz > gs:
+            stat[t]['PKT'] += 3
+            stat[t]['Z'] += 1
+            stat[t]['Historia'].append('Z')
+        elif gz == gs:
+            stat[t]['PKT'] += 1
+            stat[t]['R'] += 1
+            stat[t]['Historia'].append('R')
+        else:
+            stat[t]['P'] += 1
+            stat[t]['Historia'].append('P')
 
     for m in wm:
         if typ in ["Wszystkie mecze", "Tylko Domowe"]: add(m['h'], m['gh'], m['ga'])
         if typ in ["Wszystkie mecze", "Tylko Wyjazdowe"]: add(m['a'], m['ga'], m['gh'])
+        
     if kary:
         for n in ["Lechia Gdansk", "Lechia Gdańsk"]:
             if n in stat: stat[n]['PKT'] -= 5
+            
     df = pd.DataFrame.from_dict(stat, orient='index').reset_index()
     if not df.empty:
         df.rename(columns={'index': 'Drużyna'}, inplace=True)
-        df['+/-'] = df['BZ'] - df['BS']
-        df = df.sort_values(by=['PKT', '+/-'], ascending=False).reset_index(drop=True)
-        df.index += 1
+        
+        # 🌟 ZMIANA: Połączona kolumna bramkowa i Z-R-P
+        df['Bramki'] = df['BZ'].astype(str) + '-' + df['BS'].astype(str)
+        df['Z-R-P'] = df['Z'].astype(str) + '-' + df['R'].astype(str) + '-' + df['P'].astype(str)
+        
+        # 🌟 ZMIANA: Najnowszy wynik (pierwszy z listy) po LEWEJ stronie
+        df['Forma'] = df['Historia'].apply(lambda x: "".join(x[:5]))
+        
+        # Sortowanie (punkty, potem różnica bramek BZ-BS)
+        df['diff'] = df['BZ'] - df['BS']
+        df = df.sort_values(by=['PKT', 'diff'], ascending=[False, False]).reset_index(drop=True)
+        
+        df.index = range(1, len(df) + 1)
+        df.index.name = 'Poz'
+        df = df.reset_index()
+        
+        # 🌟 ZMIANA: Nowy układ kolumn
+        df = df[['Poz', 'Drużyna', 'M', 'PKT', 'Bramki', 'Z-R-P', 'Forma']]
+        
     return df
 
 if mecze_z_api:
-    c1, c2 = st.columns([1.5, 1.2])
+    c1, c2 = st.columns([1.5, 1.1])
     with c1:
         st.subheader(f"📊 Tabela")
         res = generuj_tabele(mecze_z_api, wybrana_data, aktywne_symulacje, typ_tabeli, limit_meczow, uwzglednij_kary)
-        # ZMIANA: Tabela znów ma pozycje (brak hide_index) i stałą, przewijaną wysokość dopasowaną do prawego panelu
-        st.dataframe(res, use_container_width=True, height=710)
+        st.dataframe(res, use_container_width=True, height=710, hide_index=True)
         
     with c2:
         st.subheader("🔮 Symulacja")
-        # ZMIANA: Stała wysokość i border, by panel przewijał się ładnie obok tabeli na PC
         with st.container(height=710, border=True):
             for m in mecze_z_api:
                 st_obj = m.get('status', {})
@@ -161,19 +195,17 @@ if mecze_z_api:
                         sh, sa = skrot_nazwy(h), skrot_nazwy(a)
                         
                         if tryb_symulacji == "1X2 (Szybki)":
-                            # ZMIANA: Ciasny układ z buforami na krańcach specjalnie pod PC
-                            col1, col2, col3, col4, col5 = st.columns([0.7, 1.8, 2.2, 1.8, 0.5])
+                            col1, col2, col3, col4, col5 = st.columns([0.8, 2.5, 2.0, 2.5, 0.4])
                             with col1: st.markdown(f"<div style='font-size:0.85em; color:gray; padding-top:6px;'>{dm.strftime('%d.%m')}</div>", unsafe_allow_html=True)
-                            with col2: st.markdown(f"<div style='text-align:right; padding-top:4px;'><b>{sh}</b></div>", unsafe_allow_html=True)
+                            with col2: st.markdown(f"<div style='display: flex; justify-content: flex-end; width: 100%; padding-top:4px;'><b>{sh}</b></div>", unsafe_allow_html=True)
                             with col3: st.radio("1X2", ["1", "X", "2"], key=f"1x2_{mid}", label_visibility="collapsed", horizontal=True, index=None)
-                            with col4: st.markdown(f"<div style='text-align:left; padding-top:4px;'><b>{sa}</b></div>", unsafe_allow_html=True)
+                            with col4: st.markdown(f"<div style='display: flex; justify-content: flex-start; width: 100%; padding-top:4px;'><b>{sa}</b></div>", unsafe_allow_html=True)
                         else:
-                            # ZMIANA: Podobny, ciasny układ dla pól tekstowych
-                            col1, col2, col3, col4, col5, col6 = st.columns([0.7, 2.0, 1.2, 1.2, 2.0, 0.5])
+                            col1, col2, col3, col4, col5, col6 = st.columns([0.8, 2.5, 1.2, 1.2, 2.5, 0.4])
                             with col1: st.markdown(f"<div style='font-size:0.85em; color:gray; padding-top:12px;'>{dm.strftime('%d.%m')}</div>", unsafe_allow_html=True)
-                            with col2: st.markdown(f"<div style='text-align:right; padding-top:8px;'><b>{sh}</b></div>", unsafe_allow_html=True)
+                            with col2: st.markdown(f"<div style='display: flex; justify-content: flex-end; width: 100%; padding-top:8px;'><b>{sh}</b></div>", unsafe_allow_html=True)
                             with col3: st.text_input("H", key=f"h_{mid}", label_visibility="collapsed")
                             with col4: st.text_input("A", key=f"a_{mid}", label_visibility="collapsed")
-                            with col5: st.markdown(f"<div style='text-align:left; padding-top:8px;'><b>{sa}</b></div>", unsafe_allow_html=True)
+                            with col5: st.markdown(f"<div style='display: flex; justify-content: flex-start; width: 100%; padding-top:8px;'><b>{sa}</b></div>", unsafe_allow_html=True)
 else:
     st.warning("Brak danych z API.")
