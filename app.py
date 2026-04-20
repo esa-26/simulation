@@ -4,6 +4,35 @@ import requests
 from datetime import datetime
 
 st.set_page_config(page_title="Symulator Ekstraklasy Pro", page_icon="⚽", layout="wide")
+
+# 🌟 MAGIA CSS: Działa tylko na ekranach mobilnych (max-width: 768px)
+st.markdown("""
+<style>
+/* Ściskamy kropki (1 X 2), aby nigdy nie łamały się do nowej linii (dla PC i mobile) */
+div[data-testid="stVerticalBlockBorderWrapper"] div[role="radiogroup"] {
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+}
+
+/* Reguły TYLKO dla telefonów */
+@media (max-width: 768px) {
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"] {
+        min-width: 0 !important;
+        width: auto !important;
+        flex: 1 1 0% !important;
+        padding: 0 2px !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] p {
+        font-size: 13px !important;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("⚽ Zaawansowany Symulator Ekstraklasy")
 
 @st.cache_data(ttl=3600)
@@ -11,7 +40,7 @@ def pobierz_dane_z_api():
     url = "https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league?leagueid=196"
     headers = {
         "x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com",
-        "x-rapidapi-key": st.secrets["RAPIDAPI_KEY"]
+        "x-rapidapi-key": st.secrets["RAPIDAPI_KEY"] # <-- ZMIEŃ NA SWÓJ KLUCZ
     }
     try:
         response = requests.get(url, headers=headers)
@@ -116,9 +145,12 @@ if mecze_z_api:
     with c1:
         st.subheader(f"📊 Tabela")
         res = generuj_tabele(mecze_z_api, wybrana_data, aktywne_symulacje, typ_tabeli, limit_meczow, uwzglednij_kary)
-        st.dataframe(res, use_container_width=True, height=750)
+        # ZMIANA: Tabela znów ma pozycje (brak hide_index) i stałą, przewijaną wysokość dopasowaną do prawego panelu
+        st.dataframe(res, use_container_width=True, height=710)
+        
     with c2:
         st.subheader("🔮 Symulacja")
+        # ZMIANA: Stała wysokość i border, by panel przewijał się ładnie obok tabeli na PC
         with st.container(height=710, border=True):
             for m in mecze_z_api:
                 st_obj = m.get('status', {})
@@ -129,19 +161,19 @@ if mecze_z_api:
                         sh, sa = skrot_nazwy(h), skrot_nazwy(a)
                         
                         if tryb_symulacji == "1X2 (Szybki)":
-                            # 🌟 ZMIANA WIZUALNA: Ciasne kolumny w centrum (0.8 buforu po prawej)
-                            col1, col2, col3, col4, col5 = st.columns([0.7, 2.0, 2.0, 2.0, 0.8])
-                            with col1: st.caption(dm.strftime('%d.%m'))
-                            with col2: st.markdown(f"<p style='text-align:right; margin-top:5px;'><b>{sh}</b></p>", unsafe_allow_html=True)
+                            # ZMIANA: Ciasny układ z buforami na krańcach specjalnie pod PC
+                            col1, col2, col3, col4, col5 = st.columns([0.7, 1.8, 2.2, 1.8, 0.5])
+                            with col1: st.markdown(f"<div style='font-size:0.85em; color:gray; padding-top:6px;'>{dm.strftime('%d.%m')}</div>", unsafe_allow_html=True)
+                            with col2: st.markdown(f"<div style='text-align:right; padding-top:4px;'><b>{sh}</b></div>", unsafe_allow_html=True)
                             with col3: st.radio("1X2", ["1", "X", "2"], key=f"1x2_{mid}", label_visibility="collapsed", horizontal=True, index=None)
-                            with col4: st.markdown(f"<p style='text-align:left; margin-top:5px;'><b>{sa}</b></p>", unsafe_allow_html=True)
+                            with col4: st.markdown(f"<div style='text-align:left; padding-top:4px;'><b>{sa}</b></div>", unsafe_allow_html=True)
                         else:
-                            # 🌟 ZMIANA WIZUALNA: Ściśnięte pola tekstowe
-                            col1, col2, col3, col4, col5, col6 = st.columns([0.7, 2.0, 1, 1, 2.0, 0.8])
-                            with col1: st.caption(dm.strftime('%d.%m'))
-                            with col2: st.markdown(f"<p style='text-align:right; margin-top:5px;'><b>{sh}</b></p>", unsafe_allow_html=True)
+                            # ZMIANA: Podobny, ciasny układ dla pól tekstowych
+                            col1, col2, col3, col4, col5, col6 = st.columns([0.7, 2.0, 1.2, 1.2, 2.0, 0.5])
+                            with col1: st.markdown(f"<div style='font-size:0.85em; color:gray; padding-top:12px;'>{dm.strftime('%d.%m')}</div>", unsafe_allow_html=True)
+                            with col2: st.markdown(f"<div style='text-align:right; padding-top:8px;'><b>{sh}</b></div>", unsafe_allow_html=True)
                             with col3: st.text_input("H", key=f"h_{mid}", label_visibility="collapsed")
                             with col4: st.text_input("A", key=f"a_{mid}", label_visibility="collapsed")
-                            with col5: st.markdown(f"<p style='text-align:left; margin-top:5px;'><b>{sa}</b></p>", unsafe_allow_html=True)
+                            with col5: st.markdown(f"<div style='text-align:left; padding-top:8px;'><b>{sa}</b></div>", unsafe_allow_html=True)
 else:
     st.warning("Brak danych z API.")
