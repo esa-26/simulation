@@ -31,7 +31,7 @@ def pobierz_dane_z_api():
     url = "https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league?leagueid=196"
     headers = {
         "x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com",
-        ""x-rapidapi-key": st.secrets["RAPIDAPI_KEY"] # <-- TWÓJ KLUCZ
+        "x-rapidapi-key": st.secrets["RAPIDAPI_KEY"] # <-- TWÓJ KLUCZ
     }
     try:
         response = requests.get(url, headers=headers)
