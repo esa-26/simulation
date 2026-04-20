@@ -4,57 +4,60 @@ import requests
 from datetime import datetime
 
 # ----------------- CONFIGURATION -----------------
-st.set_page_config(page_title="Pro Football Simulator", page_icon="⚽", layout="wide")
+st.set_page_config(page_title="FlashCalc - Fast League Simulator", page_icon="⚡", layout="wide")
 
-# CSS: Advanced alignment and WRAP BLOCKING
+# CSS: Professional "FlashScore-like" styling
 st.markdown("""
 <style>
-    /* Blokada zawijania rzędów i centrowanie */
-    [data-testid="stHorizontalBlock"] { 
-        align-items: center !important; 
-        gap: 0px !important;
-        flex-wrap: nowrap !important; /* Zakaz łamania kolumn do nowych linii */
-    }
+    /* Main Layout */
+    [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0px !important; flex-wrap: nowrap !important; }
     
-    /* STYLIZACJA KAFELKÓW (PILLS) - BLOKADA ZAWIJANIA */
-    div[data-testid="stPills"] > div {
-        flex-wrap: nowrap !important; /* Kluczowe: kafelki nigdy nie przejdą do nowej linii */
-        justify-content: center !important;
-        gap: 4px !important;
-        min-width: 140px !important; /* Rezerwacja miejsca, żeby nie "pękły" */
-    }
-
-    /* Dopasowanie samych przycisków */
+    /* Tiles styling (st.pills) - THE 1 X 2 TILES */
     [data-testid="stBaseButton-pills"] { 
-        border-radius: 6px !important; 
-        padding: 2px 10px !important;
+        border-radius: 4px !important; 
+        padding: 4px 12px !important;
         font-weight: bold !important;
-        font-size: 14px !important;
+        border: 1px solid #d1d5db !important;
     }
 
-    /* Wyrównanie pól tekstowych */
-    div[data-testid="stTextInput"] input {
-        text-align: center !important;
+    /* Selection Color (FlashScore Red) */
+    [data-testid="stBaseButton-pills"][aria-selected="true"] {
+        background-color: #ee4444 !important;
+        color: white !important;
+        border-color: #ee4444 !important;
     }
 
-    /* Responsywność nazw - zapobieganie uciekaniu tekstu */
-    .team-label {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    /* Force tiles to stay in one line and be centered */
+    div[data-testid="stPills"] > div {
+        flex-wrap: nowrap !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        min-width: 140px !important;
+    }
+
+    /* Inputs alignment */
+    div[data-testid="stTextInput"] input { text-align: center !important; }
+
+    /* Custom Title Color */
+    .main-title { color: #ee4444; font-size: 42px; font-weight: 800; margin-bottom: -10px; }
+
+    @media (max-width: 768px) {
+        div[data-testid="column"] { min-width: 0 !important; flex: 1 1 auto !important; }
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("⚽ Advanced League Simulator")
+st.markdown("<div class='main-title'>⚡ FlashCalc</div>", unsafe_allow_html=True)
+st.caption("Standings at the speed of light. Predict titles, avoid the drop.")
 
+# Reset logic
 if 'reset_counter' not in st.session_state:
     st.session_state.reset_counter = 0
 
 # ----------------- LEAGUE MAPPING -----------------
 LEAGUES = {
-    "Poland: Ekstraklasa": 196,
     "England: Premier League": 47,
+    "Poland: Ekstraklasa": 196,
     "Spain: La Liga": 87,
     "Germany: Bundesliga": 54,
     "Italy: Serie A": 55,
@@ -68,23 +71,23 @@ LEAGUES = {
 }
 
 # ----------------- SIDEBAR -----------------
-st.sidebar.header("🌍 League Selection")
+st.sidebar.header("🏆 Competitions")
 selected_league_name = st.sidebar.selectbox("Select League:", list(LEAGUES.keys()))
 league_id = LEAGUES[selected_league_name]
 
 st.sidebar.divider()
-st.sidebar.header("⚙️ Settings")
-selected_date = st.sidebar.date_input("Table Date:", datetime.now().date())
-sim_mode = st.sidebar.radio("🕹️ Prediction Mode:", ["1X2 (Quick)", "Correct Score"])
-table_type = st.sidebar.radio("🔍 Standings Type:", ["All matches", "Home only", "Away only"])
-form_limit = st.sidebar.number_input("Form Table (last X):", min_value=0, max_value=38, value=0)
+st.sidebar.header("⚙️ Simulation Settings")
+selected_date = st.sidebar.date_input("Standings as of:", datetime.now().date())
+sim_mode = st.sidebar.radio("🕹️ Input Mode:", ["1X2 (Fast)", "Exact Score"])
+table_type = st.sidebar.radio("🔍 View:", ["All Games", "Home", "Away"])
+form_limit = st.sidebar.number_input("Last X Matches Only:", min_value=0, max_value=38, value=0)
 
-if st.sidebar.button("🗑️ Reset All Simulation", use_container_width=True):
+if st.sidebar.button("🗑️ Reset FlashCalc", use_container_width=True):
     st.session_state.reset_counter += 1
     st.cache_data.clear()
     st.rerun()
 
-# ----------------- DATA FETCHING -----------------
+# ----------------- DATA FETCHING (CACHE) -----------------
 @st.cache_data(ttl=3600)
 def fetch_api_data(lid):
     url = f"https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league?leagueid={lid}"
@@ -100,7 +103,7 @@ def fetch_api_data(lid):
 data_json = fetch_api_data(league_id)
 api_matches = data_json.get("response", {}).get("matches", [])
 
-# ----------------- LOGIKA SYMULACJI -----------------
+# ----------------- SIMULATION LOGIC -----------------
 active_simulations = {}
 rc = st.session_state.reset_counter
 
@@ -145,8 +148,8 @@ def generate_table(matches_list, date_limit, sym, t_type, f_limit):
         else: stats[team]['L'] += 1; stats[team]['History'].append('L')
 
     for m in processed:
-        if t_type in ["All matches", "Home only"]: add_stats(m['h'], m['gh'], m['ga'])
-        if t_type in ["All matches", "Away only"]: add_stats(m['a'], m['ga'], m['gh'])
+        if t_type in ["All Games", "Home"]: add_stats(m['h'], m['gh'], m['ga'])
+        if t_type in ["All Games", "Away"]: add_stats(m['a'], m['ga'], m['gh'])
             
     df = pd.DataFrame.from_dict(stats, orient='index').reset_index()
     if not df.empty:
@@ -161,15 +164,25 @@ def generate_table(matches_list, date_limit, sym, t_type, f_limit):
         df = df[['Pos', 'Team', 'P', 'Pts', 'Goals', 'W-D-L', 'Form']]
     return df
 
+def highlight_zones(res_df):
+    num_teams = len(res_df)
+    def apply_color(row):
+        color = ''
+        if row['Pos'] == 1: color = 'background-color: #fff4f4; color: #ee4444; font-weight: bold; border-left: 4px solid #ee4444;'
+        elif row['Pos'] > num_teams - 3: color = 'background-color: #f9fafb; color: #6b7280; border-left: 4px solid #9ca3af;'
+        return [color] * len(row)
+    return res_df.style.apply(apply_color, axis=1)
+
 # ----------------- MAIN VIEW -----------------
 if api_matches:
-    c1, c2 = st.columns([1.4, 1.3])
+    c1, c2 = st.columns([1.5, 1.2])
     with c1:
-        st.subheader(f"📊 Standings: {selected_league_name}")
-        table_res = generate_table(api_matches, selected_date, active_simulations, table_type, form_limit)
-        st.dataframe(table_res, use_container_width=True, height=750, hide_index=True)
+        st.subheader(f"📊 Live Standings")
+        table_data = generate_table(api_matches, selected_date, active_simulations, table_type, form_limit)
+        if not table_data.empty:
+            st.dataframe(highlight_zones(table_data), use_container_width=True, height=750, hide_index=True)
     with c2:
-        st.subheader("🔮 Simulation")
+        st.subheader("🔮 Simulation Hub")
         with st.container(height=750, border=True):
             for m in api_matches:
                 status = m.get('status', {})
@@ -178,19 +191,18 @@ if api_matches:
                     if pd.notnull(match_time) and match_time.date() >= selected_date:
                         h_name, a_name, m_id = m['home']['name'], m['away']['name'], str(m['id'])
                         
-                        if sim_mode == "1X2 (Quick)":
-                            # 🌟 ZMODYFIKOWANE PROPORCJE - col3 ma rezerwację szerokości
-                            col1, col2, col3, col4, col5 = st.columns([0.7, 2.5, 1.8, 2.5, 0.1])
+                        if sim_mode == "1X2 (Fast)":
+                            col1, col2, col3, col4, col5 = st.columns([0.6, 2.5, 1.8, 2.5, 0.2])
                             with col1: st.caption(match_time.strftime('%d.%m'))
-                            with col2: st.markdown(f"<div class='team-label' style='text-align:right; font-weight:bold; padding-top:5px;'>{h_name}</div>", unsafe_allow_html=True)
+                            with col2: st.markdown(f"<div style='text-align:right; font-weight:bold; padding-top:5px;'>{h_name}</div>", unsafe_allow_html=True)
                             with col3: st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
-                            with col4: st.markdown(f"<div class='team-label' style='text-align:left; font-weight:bold; padding-top:5px;'>{a_name}</div>", unsafe_allow_html=True)
+                            with col4: st.markdown(f"<div style='text-align:left; font-weight:bold; padding-top:5px;'>{a_name}</div>", unsafe_allow_html=True)
                         else:
-                            col1, col2, col3, col4, col5, col6 = st.columns([0.7, 2.5, 0.8, 0.8, 2.5, 0.1])
+                            col1, col2, col3, col4, col5, col6 = st.columns([0.6, 2.5, 0.8, 0.8, 2.5, 0.2])
                             with col1: st.caption(match_time.strftime('%d.%m'))
-                            with col2: st.markdown(f"<div class='team-label' style='text-align:right; font-weight:bold; padding-top:8px;'>{h_name}</div>", unsafe_allow_html=True)
+                            with col2: st.markdown(f"<div style='text-align:right; font-weight:bold; padding-top:8px;'>{h_name}</div>", unsafe_allow_html=True)
                             with col3: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed")
                             with col4: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed")
-                            with col5: st.markdown(f"<div class='team-label' style='text-align:left; font-weight:bold; padding-top:8px;'>{a_name}</div>", unsafe_allow_html=True)
+                            with col5: st.markdown(f"<div style='text-align:left; font-weight:bold; padding-top:8px;'>{a_name}</div>", unsafe_allow_html=True)
 else:
-    st.warning("No data available.")
+    st.warning("No live data available for this competition.")
