@@ -12,9 +12,7 @@ def send_email(user_msg, user_contact):
     msg['Subject'] = "⚡ FlashCalc Feedback"
     msg['From'] = st.secrets["EMAIL_USER"]
     msg['To'] = "flashcalc1x2@gmail.com"
-
     try:
-        # Używamy portu 465 dla SSL
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(st.secrets["EMAIL_USER"], st.secrets["EMAIL_PASS"])
             server.send_message(msg)
@@ -23,43 +21,66 @@ def send_email(user_msg, user_contact):
         return False
 
 # ----------------- KONFIGURACJA STRONY -----------------
-# To MUSI być pierwsza komenda Streamlit w kodzie
 st.set_page_config(page_title="FlashCalc - Fast League Simulator", page_icon="⚡", layout="wide")
 
-# ----------------- CSS: PROFESSIONAL STYLING & RESPONSIVENESS -----------------
+# ----------------- CSS: ADVANCED RESPONSIVE DESIGN -----------------
 st.markdown("""
 <style>
     /* Desktop layout */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0px !important; }
     
-    /* MOBILE RESPONSIVENESS: Stack columns on small screens */
+    /* MOBILE RESPONSIVENESS */
     @media (max-width: 768px) {
-        [data-testid="stHorizontalBlock"] {
+        /* Główne kolumny: Tabela -> Symulator (pod spodem) */
+        .main-container [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
         }
-        div[data-testid="column"] {
+
+        /* Sekcja pojedynczego meczu w symulacji */
+        .match-row [data-testid="stHorizontalBlock"] {
+            flex-direction: column !important;
+            padding: 15px 0 !important;
+            border-bottom: 1px solid #eee !important;
+        }
+
+        /* Wymuszenie szerokości 100% dla elementów w pionie */
+        .match-row [data-testid="column"] {
             width: 100% !important;
-            flex: 1 1 100% !important;
             min-width: 100% !important;
+            text-align: center !important;
+            margin-bottom: 5px !important;
+        }
+
+        /* Centrowanie tekstów drużyn na mobile */
+        .team-text {
+            text-align: center !important;
+            padding: 2px 0 !important;
+            width: 100% !important;
+        }
+        
+        /* Specjalny układ dla pól tekstowych (wynik obok siebie na mobile) */
+        .score-inputs [data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            justify-content: center !important;
+        }
+        .score-inputs [data-testid="column"] {
+            width: 80px !important;
+            min-width: 80px !important;
         }
     }
 
-    /* Tiles styling (st.pills) */
+    /* Kafelki 1 X 2 */
     [data-testid="stBaseButton-pills"] { 
         border-radius: 4px !important; 
         padding: 4px 12px !important;
         font-weight: bold !important;
         border: 1px solid #d1d5db !important;
     }
-
-    /* FlashScore Red for Selected Tiles */
     [data-testid="stBaseButton-pills"][aria-selected="true"] {
         background-color: #ee4444 !important;
         color: white !important;
         border-color: #ee4444 !important;
     }
-
-    /* Force tiles to stay in one line */
     div[data-testid="stPills"] > div {
         flex-wrap: nowrap !important;
         justify-content: center !important;
@@ -75,7 +96,6 @@ st.markdown("""
 st.markdown("<div class='main-title'>⚡ FlashCalc</div>", unsafe_allow_html=True)
 st.caption("Standings at the speed of light. Predict titles, avoid the drop.")
 
-# Inicjalizacja licznika resetu
 if 'reset_counter' not in st.session_state:
     st.session_state.reset_counter = 0
 
@@ -112,17 +132,13 @@ if st.sidebar.button("🗑️ Reset FlashCalc", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-# --- SUPPORT & CONTACT FORM ---
+# --- CONTACT FORM ---
 st.sidebar.divider()
-st.sidebar.header("☕ Support & Feedback")
-st.sidebar.link_button("❤️ Support Project", "https://www.buymeacoffee.com/twoj-login", use_container_width=True)
-
 with st.sidebar.expander("📬 Contact & Feedback"):
     with st.form("contact_form", clear_on_submit=True):
         user_contact = st.text_input("Your email/nick (optional):")
         user_message = st.text_area("Message:")
         submit_contact = st.form_submit_button("Send to FlashCalc", use_container_width=True)
-        
         if submit_contact:
             if user_message.strip():
                 with st.spinner("Sending..."):
@@ -130,8 +146,7 @@ with st.sidebar.expander("📬 Contact & Feedback"):
                         st.success("Message sent! ⚡")
                     else:
                         st.error("Error sending message.")
-            else:
-                st.warning("Please enter a message.")
+            else: st.warning("Enter message.")
 
 # ----------------- DATA FETCHING (API) -----------------
 @st.cache_data(ttl=3600)
@@ -171,9 +186,8 @@ def generate_table(matches_list, date_limit, sym, t_type, f_limit):
     for m in matches_list:
         m_id = str(m.get('id', ''))
         st_obj = m.get('status', {})
-        match_utc = st_obj.get('utcTime')
-        if not match_utc: continue
-        m_date = pd.to_datetime(match_utc, errors='coerce')
+        if not st_obj.get('utcTime'): continue
+        m_date = pd.to_datetime(st_obj['utcTime'], errors='coerce')
         gh, ga = None, None
         if m_id in sym:
             gh, ga = sym[m_id]['h'], sym[m_id]['a']
@@ -205,8 +219,7 @@ def generate_table(matches_list, date_limit, sym, t_type, f_limit):
         df['Form'] = df['History'].apply(lambda x: "".join(x[:5]))
         df['diff'] = df['GS'] - df['GC']
         df = df.sort_values(by=['Pts', 'diff', 'GS'], ascending=[False, False, False]).reset_index(drop=True)
-        df.index = range(1, len(df) + 1)
-        df.index.name = 'Pos'; df = df.reset_index()
+        df.index = range(1, len(df) + 1); df.index.name = 'Pos'; df = df.reset_index()
         df = df[['Pos', 'Team', 'P', 'Pts', 'Goals', 'W-D-L', 'Form']]
     return df
 
@@ -219,17 +232,21 @@ def highlight_zones(res_df):
         return [color] * len(row)
     return res_df.style.apply(apply_color, axis=1)
 
-# ----------------- MAIN VIEW (DYNAMIC COLUMNS) -----------------
+# ----------------- MAIN VIEW -----------------
 if api_matches:
+    # GŁÓWNY WRAPPER DLA KOLUMN
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     c1, c2 = st.columns([1.5, 1.2])
+    
     with c1:
         st.subheader("📊 Live Standings")
         table_data = generate_table(api_matches, selected_date, active_simulations, table_type, form_limit)
         if not table_data.empty:
-            st.dataframe(highlight_zones(table_data), use_container_width=True, height=750, hide_index=True)
+            st.dataframe(highlight_zones(table_data), use_container_width=True, height=700, hide_index=True)
+    
     with c2:
         st.subheader("🔮 Simulation Hub")
-        with st.container(height=750, border=True):
+        with st.container(height=700, border=True):
             for m in api_matches:
                 status = m.get('status', {})
                 if not status.get('finished') and not status.get('cancelled'):
@@ -237,18 +254,29 @@ if api_matches:
                     if pd.notnull(match_time) and match_time.date() >= selected_date:
                         h_name, a_name, m_id = m['home']['name'], m['away']['name'], str(m['id'])
                         
+                        # WRAPPER DLA POJEDYNCZEGO MECZU
+                        st.markdown("<div class='match-row'>", unsafe_allow_html=True)
+                        
                         if sim_mode == "1X2 (Fast)":
                             col1, col2, col3, col4, col5 = st.columns([0.6, 2.5, 1.8, 2.5, 0.2])
                             with col1: st.caption(match_time.strftime('%d.%m'))
-                            with col2: st.markdown(f"<div style='text-align:right; font-weight:bold; padding-top:5px;'>{h_name}</div>", unsafe_allow_html=True)
+                            with col2: st.markdown(f"<div class='team-text' style='text-align:right; font-weight:bold;'>{h_name}</div>", unsafe_allow_html=True)
+                            with col4: st.markdown(f"<div class='team-text' style='text-align:left; font-weight:bold;'>{a_name}</div>", unsafe_allow_html=True)
                             with col3: st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
-                            with col4: st.markdown(f"<div style='text-align:left; font-weight:bold; padding-top:5px;'>{a_name}</div>", unsafe_allow_html=True)
-                        else:
+                        
+                        else: # EXACT SCORE
+                            # Wrapper score-inputs pozwala na trzymanie H i A obok siebie nawet na mobile
+                            st.markdown("<div class='score-inputs'>", unsafe_allow_html=True)
                             col1, col2, col3, col4, col5, col6 = st.columns([0.6, 2.5, 0.8, 0.8, 2.5, 0.2])
                             with col1: st.caption(match_time.strftime('%d.%m'))
-                            with col2: st.markdown(f"<div style='text-align:right; font-weight:bold; padding-top:8px;'>{h_name}</div>", unsafe_allow_html=True)
+                            with col2: st.markdown(f"<div class='team-text' style='text-align:right; font-weight:bold;'>{h_name}</div>", unsafe_allow_html=True)
+                            with col5: st.markdown(f"<div class='team-text' style='text-align:left; font-weight:bold;'>{a_name}</div>", unsafe_allow_html=True)
                             with col3: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed")
                             with col4: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed")
-                            with col5: st.markdown(f"<div style='text-align:left; font-weight:bold; padding-top:8px;'>{a_name}</div>", unsafe_allow_html=True)
+                            st.markdown("</div>", unsafe_allow_html=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True) # Koniec main-container
 else:
-    st.warning("No data available.")
+    st.warning("No live data available.")
