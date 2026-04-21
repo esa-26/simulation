@@ -26,71 +26,90 @@ st.set_page_config(page_title="FlashCalc - Fast League Simulator", page_icon="�
 # ----------------- CSS: ULTRA-CLEAN MOBILE DESIGN -----------------
 st.markdown("""
 <style>
-    /* Desktop layout */
+    /* Desktop layout - utrzymuje tabelę i symulator obok siebie */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0px !important; }
     
-    /* MOBILE RESPONSIVENESS (Screens < 768px) */
+    /* MOBILE RESPONSIVENESS (Ekrany < 768px) */
     @media (max-width: 768px) {
+        /* Tabela pod symulatorem */
         .main-container [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
         }
 
+        /* Wiersz meczu zamienia się w stos */
         .match-row {
             padding: 15px 5px !important;
-            border-bottom: 1px solid #eee !important;
+            border-bottom: 1px solid #f0f0f0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
         }
 
+        /* Każda kolumna wewnątrz meczu na 100% szerokości */
         .match-row [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
+            width: 100% !important;
         }
 
         .match-row [data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
             text-align: center !important;
+            margin-bottom: 5px !important;
         }
 
+        /* Stylistyka nazw drużyn na mobile */
         .team-label {
             display: block !important;
             font-size: 16px !important;
             font-weight: 700 !important;
             margin: 2px 0 !important;
             line-height: 1.2 !important;
+            text-align: center !important;
         }
 
         .vs-divider {
             font-size: 12px !important;
-            color: #888 !important;
-            margin: -2px 0 !important;
+            color: #aaa !important;
+            margin: 0 !important;
+            text-align: center !important;
         }
 
-        /* Wynik H : A - obok siebie na środku */
-        .score-container {
+        /* Kontener na przyciski 1X2 i wyniki Exact Score */
+        .inputs-wrap {
             display: flex !important;
             justify-content: center !important;
-            align-items: center !important;
-            gap: 10px !important;
+            width: 100% !important;
             margin-top: 10px !important;
         }
         
-        .score-box {
-            width: 75px !important;
+        /* Specyficzne wymiary dla Exact Score */
+        .score-box-wrap {
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 15px !important;
+            justify-content: center !important;
+        }
+        .score-box-wrap [data-testid="column"] {
+            width: 80px !important;
+            min-width: 80px !important;
         }
     }
 
-    /* Kafelki 1 X 2 */
+    /* Kafelki 1 X 2 (Pills) */
     [data-testid="stBaseButton-pills"] { 
-        border-radius: 4px !important; padding: 4px 12px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
+        border-radius: 4px !important; padding: 4px 15px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
     }
     [data-testid="stBaseButton-pills"][aria-selected="true"] {
         background-color: #ee4444 !important; color: white !important; border-color: #ee4444 !important;
     }
     
+    /* Wygląd pól tekstowych (Exact Score) */
     div[data-testid="stTextInput"] input { 
         text-align: center !important; 
         font-size: 18px !important; 
         font-weight: bold !important;
-        background-color: #f9f9f9 !important;
+        background-color: #fcfcfc !important;
     }
     
     .main-title { color: #ee4444; font-size: 42px; font-weight: 800; margin-bottom: -10px; }
@@ -238,29 +257,23 @@ if api_matches:
                     m_time = pd.to_datetime(status.get('utcTime'), errors='coerce')
                     if pd.notnull(m_time) and m_time.date() >= selected_date:
                         h_n, a_n, m_id = m['home']['name'], m['away']['name'], str(m['id'])
+                        
                         st.markdown("<div class='match-row'>", unsafe_allow_html=True)
+                        st.caption(m_time.strftime('%d.%m'))
+                        st.markdown(f"<div class='team-label'>{h_n}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='vs-divider'>vs</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='team-label'>{a_n}</div>", unsafe_allow_html=True)
                         
+                        st.markdown("<div class='inputs-wrap'>", unsafe_allow_html=True)
                         if sim_mode == "1X2 (Fast)":
-                            col1, col2, col3, col4, col5 = st.columns([0.6, 2.5, 1.8, 2.5, 0.2])
-                            with col1: st.caption(m_time.strftime('%d.%m'))
-                            with col2: st.markdown(f"<div class='team-label' style='text-align:right;'>{h_n}</div>", unsafe_allow_html=True)
-                            with col4: st.markdown(f"<div class='team-label' style='text-align:left;'>{a_n}</div>", unsafe_allow_html=True)
-                            with col3: st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
-                        
-                        else: # EXACT SCORE - REFINED MOBILE VIEW
-                            # Nagłówek: Data
-                            st.caption(m_time.strftime('%d.%m'))
-                            # Drużyny: Jedna pod drugą z separatorem
-                            st.markdown(f"<div class='team-label'>{h_n}</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='vs-divider'>vs</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='team-label'>{a_n}</div>", unsafe_allow_html=True)
-                            # Wyniki: Obok siebie w kontenerze
-                            st.markdown("<div class='score-container'>", unsafe_allow_html=True)
+                            st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
+                        else:
+                            st.markdown("<div class='score-box-wrap'>", unsafe_allow_html=True)
                             sc1, sc2 = st.columns([1, 1])
                             with sc1: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed", placeholder="H")
                             with sc2: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed", placeholder="A")
                             st.markdown("</div>", unsafe_allow_html=True)
-                        
+                        st.markdown("</div>", unsafe_allow_html=True)
                         st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 else:
