@@ -118,7 +118,7 @@ with st.sidebar.expander("📬 Contact & Feedback"):
             else: st.warning("Enter a message.")
 
 # ----------------- DATA FETCHING (Z DIAGNOSTYKĄ) -----------------
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def fetch_api_data(lid):
     url = f"https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league?leagueid={lid}"
     headers = {
