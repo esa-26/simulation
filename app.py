@@ -123,7 +123,7 @@ if 'reset_counter' not in st.session_state:
 
 # ----------------- LEAGUE MAPPING -----------------
 LEAGUES = {
-    "England: Premier League": 47, "Poland: Ekstraklasa": 196, "Poland: 1. Liga": 201, "Spain: La Liga": 87,
+    "England: Premier League": 47, "Poland: Ekstraklasa": 196, "Poland: 1. Liga": 197, "Spain: La Liga": 87,
     "Germany: Bundesliga": 54, "Italy: Serie A": 55, "France: Ligue 1": 53,
     "Netherlands: Eredivisie": 57, "Portugal: Primeira Liga": 61, "England: Championship": 48,
     "Turkey: Süper Lig": 71, "Belgium: Pro League": 51, "Scotland: Premiership": 64
