@@ -55,7 +55,7 @@ st.markdown("""
 
     .vs-divider { font-size: 11px !important; color: #bbb !important; flex: 0 0 auto !important; }
 
-    /* Fix dla przycisków na Desktopie - niech nie będą rozciągnięte */
+    /* Fix dla przycisków na Desktopie */
     @media (min-width: 769px) {
         div[data-testid="stPills"] {
             justify-content: flex-end !important;
@@ -75,13 +75,11 @@ st.markdown("""
             flex-direction: column !important;
         }
         
-        /* Nazwy drużyn na środek w pierwszej linii */
         .teams-inline-container {
             justify-content: center !important;
             margin-bottom: 8px !important;
         }
 
-        /* Przyciski/Wyniki wycentrowane w drugiej linii */
         .inputs-wrap-mobile {
             display: flex !important;
             justify-content: center !important;
@@ -102,7 +100,6 @@ st.markdown("""
         }
     }
 
-    /* Styl kafelków 1 X 2 */
     [data-testid="stBaseButton-pills"] { 
         border-radius: 4px !important; padding: 2px 12px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
     }
@@ -123,10 +120,19 @@ if 'reset_counter' not in st.session_state:
 
 # ----------------- LEAGUE MAPPING -----------------
 LEAGUES = {
-    "England: Premier League": 47, "Poland: Ekstraklasa": 196, "Poland: 1. Liga": 197, "Spain: La Liga": 87,
-    "Germany: Bundesliga": 54, "Italy: Serie A": 55, "France: Ligue 1": 53,
-    "Netherlands: Eredivisie": 57, "Portugal: Primeira Liga": 61, "England: Championship": 48,
-    "Turkey: Süper Lig": 71, "Belgium: Pro League": 51, "Scotland: Premiership": 64
+    "England: Premier League": 47, 
+    "Poland: Ekstraklasa": 196, 
+    "Poland: 1. Liga": 197, 
+    "Spain: La Liga": 87,
+    "Germany: Bundesliga": 54, 
+    "Italy: Serie A": 55, 
+    "France: Ligue 1": 53,
+    "Netherlands: Eredivisie": 57, 
+    "Portugal: Primeira Liga": 61, 
+    "England: Championship": 48,
+    "Turkey: Süper Lig": 71, 
+    "Belgium: Pro League": 51, 
+    "Scotland: Premiership": 64
 }
 
 # ----------------- SIDEBAR -----------------
@@ -185,8 +191,8 @@ for key, val in st.session_state.items():
             if str(val_a).isdigit():
                 active_simulations[m_id] = {'h': int(val), 'a': int(val_a)}
 
-# ----------------- STANDINGS ENGINE -----------------
-def generate_table(matches_list, date_limit, sym, t_type, f_limit):
+# ----------------- STANDINGS ENGINE (WITH PENALTY) -----------------
+def generate_table(matches_list, date_limit, sym, t_type, f_limit, lid):
     stats = {}; processed = []
     for m in matches_list:
         m_id = str(m.get('id', ''))
@@ -199,7 +205,9 @@ def generate_table(matches_list, date_limit, sym, t_type, f_limit):
             gh, ga = m.get('home', {}).get('score'), m.get('away', {}).get('score')
         if gh is not None and ga is not None:
             processed.append({'d': m_date, 'h': m['home']['name'], 'a': m['away']['name'], 'gh': gh, 'ga': ga})
+    
     processed.sort(key=lambda x: x['d'], reverse=True)
+    
     def add_stats(team, g_s, g_c):
         if team not in stats: stats[team] = {'P': 0, 'Pts': 0, 'W': 0, 'D': 0, 'L': 0, 'GS': 0, 'GC': 0, 'History': []}
         if f_limit > 0 and stats[team]['P'] >= f_limit: return
@@ -207,9 +215,17 @@ def generate_table(matches_list, date_limit, sym, t_type, f_limit):
         if g_s > g_c: stats[team]['Pts'] += 3; stats[team]['W'] += 1; stats[team]['History'].append('W')
         elif g_s == g_c: stats[team]['Pts'] += 1; stats[team]['D'] += 1; stats[team]['History'].append('D')
         else: stats[team]['L'] += 1; stats[team]['History'].append('L')
+
     for m in processed:
         if t_type in ["All Games", "Home"]: add_stats(m['h'], m['gh'], m['ga'])
         if t_type in ["All Games", "Away"]: add_stats(m['a'], m['ga'], m['gh'])
+    
+    # --- PENALTY ENGINE (Only for Ekstraklasa ID 196) ---
+    if lid == 196:
+        for team_name in stats:
+            if "Lechia" in team_name:
+                stats[team_name]['Pts'] -= 5
+
     df = pd.DataFrame.from_dict(stats, orient='index').reset_index()
     if not df.empty:
         df.rename(columns={'index': 'Team'}, inplace=True); df['Goals'] = df['GS'].astype(str) + '-' + df['GC'].astype(str)
@@ -235,7 +251,8 @@ if api_matches:
     c1, c2 = st.columns([1.5, 1.2])
     with c1:
         st.subheader("📊 Live Standings")
-        table_data = generate_table(api_matches, selected_date, active_simulations, table_type, form_limit)
+        # Przekazujemy league_id do funkcji generującej tabelę
+        table_data = generate_table(api_matches, selected_date, active_simulations, table_type, form_limit, league_id)
         if not table_data.empty: st.dataframe(highlight_zones(table_data), use_container_width=True, height=750, hide_index=True)
     with c2:
         st.subheader("🔮 Simulation Hub")
@@ -248,12 +265,8 @@ if api_matches:
                         h_n, a_n, m_id = m['home']['name'], m['away']['name'], str(m['id'])
                         
                         st.markdown("<div class='match-row-container'>", unsafe_allow_html=True)
-                        
-                        # KLUCZOWY UKŁAD: 2 Kolumny. Streamlit rozbije je na mobile na 2 linie.
                         col_left, col_right = st.columns([4, 2])
-                        
                         with col_left:
-                            # Data + Drużyny w jednej linii
                             st.markdown(f"""
                             <div class='teams-inline-container'>
                                 <span style='color:#888; font-size:12px;'>{m_time.strftime('%d.%m')}</span>
@@ -262,9 +275,7 @@ if api_matches:
                                 <span class='team-name'>{a_n}</span>
                             </div>
                             """, unsafe_allow_html=True)
-                        
                         with col_right:
-                            # Przyciski / Wyniki
                             if sim_mode == "1X2 (Fast)":
                                 st.markdown("<div class='inputs-wrap-mobile'>", unsafe_allow_html=True)
                                 st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
@@ -275,7 +286,6 @@ if api_matches:
                                 with h_col: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed", placeholder="H")
                                 with a_col: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed", placeholder="A")
                                 st.markdown("</div>", unsafe_allow_html=True)
-                        
                         st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 else:
