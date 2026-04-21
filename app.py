@@ -23,39 +23,76 @@ def send_email(user_msg, user_contact):
 # ----------------- KONFIGURACJA STRONY -----------------
 st.set_page_config(page_title="FlashCalc - Fast League Simulator", page_icon="⚡", layout="wide")
 
-# ----------------- CSS: ULTRARESPONSIVE DESIGN -----------------
+# ----------------- CSS: ULTRA-CLEAN MOBILE DESIGN -----------------
 st.markdown("""
 <style>
+    /* Desktop layout */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0px !important; }
     
+    /* MOBILE RESPONSIVENESS (Screens < 768px) */
     @media (max-width: 768px) {
         .main-container [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
         }
+
+        .match-row {
+            padding: 15px 5px !important;
+            border-bottom: 1px solid #eee !important;
+        }
+
         .match-row [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
-            padding: 12px 0 !important;
-            border-bottom: 1px solid #f0f0f0 !important;
         }
+
         .match-row [data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
             text-align: center !important;
-            margin-bottom: 5px !important;
         }
-        .team-text { text-align: center !important; font-size: 16px !important; padding: 4px 0 !important; }
-        .score-wrap { display: flex !important; flex-direction: row !important; justify-content: center !important; gap: 15px !important; width: 100% !important; }
-        .score-wrap [data-testid="column"] { width: 80px !important; min-width: 80px !important; }
+
+        .team-label {
+            display: block !important;
+            font-size: 16px !important;
+            font-weight: 700 !important;
+            margin: 2px 0 !important;
+            line-height: 1.2 !important;
+        }
+
+        .vs-divider {
+            font-size: 12px !important;
+            color: #888 !important;
+            margin: -2px 0 !important;
+        }
+
+        /* Wynik H : A - obok siebie na środku */
+        .score-container {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 10px !important;
+            margin-top: 10px !important;
+        }
+        
+        .score-box {
+            width: 75px !important;
+        }
     }
 
+    /* Kafelki 1 X 2 */
     [data-testid="stBaseButton-pills"] { 
         border-radius: 4px !important; padding: 4px 12px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
     }
     [data-testid="stBaseButton-pills"][aria-selected="true"] {
         background-color: #ee4444 !important; color: white !important; border-color: #ee4444 !important;
     }
-    div[data-testid="stPills"] > div { flex-wrap: nowrap !important; justify-content: center !important; gap: 6px !important; min-width: 140px !important; }
-    div[data-testid="stTextInput"] input { text-align: center !important; font-size: 18px !important; font-weight: bold !important; }
+    
+    div[data-testid="stTextInput"] input { 
+        text-align: center !important; 
+        font-size: 18px !important; 
+        font-weight: bold !important;
+        background-color: #f9f9f9 !important;
+    }
+    
     .main-title { color: #ee4444; font-size: 42px; font-weight: 800; margin-bottom: -10px; }
 </style>
 """, unsafe_allow_html=True)
@@ -99,46 +136,33 @@ if st.sidebar.button("🗑️ Reset FlashCalc", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-# --- SUPPORT & CONTACT FORM (PRZYWRÓCONE!) ---
+# --- SUPPORT & CONTACT ---
 st.sidebar.divider()
-st.sidebar.header("☕ Support & Feedback")
 st.sidebar.link_button("❤️ Support FlashCalc", "https://www.buymeacoffee.com/flashcalc1w", use_container_width=True)
-
 with st.sidebar.expander("📬 Contact & Feedback"):
     with st.form("contact_form", clear_on_submit=True):
-        user_contact = st.text_input("Your email/nick (optional):")
-        user_message = st.text_area("Message:")
-        submit_contact = st.form_submit_button("Send to FlashCalc", use_container_width=True)
-        if submit_contact:
-            if user_message.strip():
-                with st.spinner("Sending..."):
-                    if send_email(user_message, user_contact):
-                        st.success("Sent! ⚡")
-                    else: st.error("Error sending.")
-            else: st.warning("Enter a message.")
+        u_nick = st.text_input("Email/Nick (optional):")
+        u_msg = st.text_area("Message:")
+        if st.form_submit_button("Send to FlashCalc", use_container_width=True):
+            if u_msg.strip():
+                if send_email(u_msg, u_nick): st.success("Sent! ⚡")
+                else: st.error("Error.")
+            else: st.warning("Enter msg.")
 
-# ----------------- DATA FETCHING (Z DIAGNOSTYKĄ) -----------------
+# ----------------- DATA FETCHING (API) -----------------
 @st.cache_data(ttl=86400)
 def fetch_api_data(lid):
     url = f"https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league?leagueid={lid}"
-    headers = {
-        "x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com",
-        "x-rapidapi-key": st.secrets["RAPIDAPI_KEY"]
-    }
+    headers = {"x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com", "x-rapidapi-key": st.secrets["RAPIDAPI_KEY"]}
     try:
         response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            st.error(f"API Error {response.status_code}: {response.text}")
-            return {}
         return response.json()
-    except Exception as e:
-        st.error(f"Connection error: {e}")
-        return {}
+    except Exception: return {}
 
 data_json = fetch_api_data(league_id)
 api_matches = data_json.get("response", {}).get("matches", [])
 
-# ----------------- SIMULATION LOGIC -----------------
+# ----------------- LOGIKA SYMULACJI -----------------
 active_simulations = {}
 rc = st.session_state.reset_counter
 for key, val in st.session_state.items():
@@ -155,15 +179,14 @@ for key, val in st.session_state.items():
 
 # ----------------- STANDINGS ENGINE -----------------
 def generate_table(matches_list, date_limit, sym, t_type, f_limit):
-    stats = {}; counter = {}; processed = []
+    stats = {}; processed = []
     for m in matches_list:
         m_id = str(m.get('id', ''))
         st_obj = m.get('status', {})
         if not st_obj.get('utcTime'): continue
         m_date = pd.to_datetime(st_obj['utcTime'], errors='coerce')
         gh, ga = None, None
-        if m_id in sym:
-            gh, ga = sym[m_id]['h'], sym[m_id]['a']
+        if m_id in sym: gh, ga = sym[m_id]['h'], sym[m_id]['a']
         elif m_date.date() <= date_limit and st_obj.get('finished'):
             gh, ga = m.get('home', {}).get('score'), m.get('away', {}).get('score')
         if gh is not None and ga is not None:
@@ -181,11 +204,9 @@ def generate_table(matches_list, date_limit, sym, t_type, f_limit):
         if t_type in ["All Games", "Away"]: add_stats(m['a'], m['ga'], m['gh'])
     df = pd.DataFrame.from_dict(stats, orient='index').reset_index()
     if not df.empty:
-        df.rename(columns={'index': 'Team'}, inplace=True)
-        df['Goals'] = df['GS'].astype(str) + '-' + df['GC'].astype(str)
+        df.rename(columns={'index': 'Team'}, inplace=True); df['Goals'] = df['GS'].astype(str) + '-' + df['GC'].astype(str)
         df['W-D-L'] = df['W'].astype(str) + '-' + df['D'].astype(str) + '-' + df['L'].astype(str)
-        df['Form'] = df['History'].apply(lambda x: "".join(x[:5]))
-        df['diff'] = df['GS'] - df['GC']
+        df['Form'] = df['History'].apply(lambda x: "".join(x[:5])); df['diff'] = df['GS'] - df['GC']
         df = df.sort_values(by=['Pts', 'diff', 'GS'], ascending=[False, False, False]).reset_index(drop=True)
         df.index = range(1, len(df) + 1); df.index.name = 'Pos'; df = df.reset_index()
         df = df[['Pos', 'Team', 'P', 'Pts', 'Goals', 'W-D-L', 'Form']]
@@ -203,7 +224,7 @@ def highlight_zones(res_df):
 # ----------------- MAIN VIEW -----------------
 if api_matches:
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    c1, c2 = st.columns([1.5, 1.2])
+    c1, c2 = st.columns([1.4, 1.2])
     with c1:
         st.subheader("📊 Live Standings")
         table_data = generate_table(api_matches, selected_date, active_simulations, table_type, form_limit)
@@ -216,25 +237,31 @@ if api_matches:
                 if not status.get('finished') and not status.get('cancelled'):
                     m_time = pd.to_datetime(status.get('utcTime'), errors='coerce')
                     if pd.notnull(m_time) and m_time.date() >= selected_date:
-                        h_name, a_name, m_id = m['home']['name'], m['away']['name'], str(m['id'])
+                        h_n, a_n, m_id = m['home']['name'], m['away']['name'], str(m['id'])
                         st.markdown("<div class='match-row'>", unsafe_allow_html=True)
+                        
                         if sim_mode == "1X2 (Fast)":
                             col1, col2, col3, col4, col5 = st.columns([0.6, 2.5, 1.8, 2.5, 0.2])
                             with col1: st.caption(m_time.strftime('%d.%m'))
-                            with col2: st.markdown(f"<div class='team-text' style='text-align:right; font-weight:bold;'>{h_name}</div>", unsafe_allow_html=True)
-                            with col4: st.markdown(f"<div class='team-text' style='text-align:left; font-weight:bold;'>{a_name}</div>", unsafe_allow_html=True)
+                            with col2: st.markdown(f"<div class='team-label' style='text-align:right;'>{h_n}</div>", unsafe_allow_html=True)
+                            with col4: st.markdown(f"<div class='team-label' style='text-align:left;'>{a_n}</div>", unsafe_allow_html=True)
                             with col3: st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
-                        else:
-                            col_date, col_h, col_a = st.columns([0.6, 3, 3])
-                            with col_date: st.caption(m_time.strftime('%d.%m'))
-                            with col_h: st.markdown(f"<div class='team-text' style='text-align:right; font-weight:bold;'>{h_name}</div>", unsafe_allow_html=True)
-                            with col_a: st.markdown(f"<div class='team-text' style='text-align:left; font-weight:bold;'>{a_name}</div>", unsafe_allow_html=True)
-                            st.markdown("<div class='score-wrap'>", unsafe_allow_html=True)
-                            s_col1, s_col2 = st.columns([1, 1])
-                            with s_col1: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed", placeholder="H")
-                            with s_col2: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed", placeholder="A")
+                        
+                        else: # EXACT SCORE - REFINED MOBILE VIEW
+                            # Nagłówek: Data
+                            st.caption(m_time.strftime('%d.%m'))
+                            # Drużyny: Jedna pod drugą z separatorem
+                            st.markdown(f"<div class='team-label'>{h_n}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='vs-divider'>vs</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='team-label'>{a_n}</div>", unsafe_allow_html=True)
+                            # Wyniki: Obok siebie w kontenerze
+                            st.markdown("<div class='score-container'>", unsafe_allow_html=True)
+                            sc1, sc2 = st.columns([1, 1])
+                            with sc1: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed", placeholder="H")
+                            with sc2: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed", placeholder="A")
                             st.markdown("</div>", unsafe_allow_html=True)
+                        
                         st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 else:
-    st.warning("No data available. Please check your API key/limit.")
+    st.warning("No data available.")
