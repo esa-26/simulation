@@ -23,38 +23,33 @@ def send_email(user_msg, user_contact):
 # ----------------- KONFIGURACJA STRONY -----------------
 st.set_page_config(page_title="FlashCalc - Fast League Simulator", page_icon="⚡", layout="wide")
 
-# ----------------- CSS: ADVANCED CONDENSED DESIGN -----------------
+# ----------------- CSS: FINETUNED DESIGN -----------------
 st.markdown("""
 <style>
-    /* Główne kontenery */
+    /* Globalne ustawienia kolumn desktop */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0px !important; }
     
-    /* --- DESKTOP ONLY (Zagęszczenie) --- */
-    @media (min-width: 769px) {
-        .match-row-container {
-            padding: 4px 0 !important; /* Minimalny odstęp między meczami */
-            border-bottom: 1px solid #f7f7f7 !important;
-        }
-        /* Sprawienie, by kolumny Streamlit były bardziej zbite */
-        div[data-testid="column"] {
-            padding: 0 5px !important;
-        }
-        .team-name-desktop {
-            font-size: 14px !important;
-            font-weight: 600 !important;
-        }
+    /* FIX: Zapobieganie rozciąganiu kafelków na komputerze */
+    div[data-testid="stPills"] {
+        display: flex !important;
+        justify-content: center !important;
+        max-width: 160px !important; /* Stała szerokość na desktopie */
+        margin: 0 auto !important;
     }
 
-    /* --- MOBILE ONLY --- */
+    /* MOBILE RESPONSIVENESS */
     @media (max-width: 768px) {
         .main-container [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
         }
-        .match-row-container {
+
+        .match-row {
             padding: 12px 0 !important;
             border-bottom: 1px solid #f2f2f2 !important;
             width: 100% !important;
         }
+
+        /* Układ nazw w jednej linii */
         .teams-one-line {
             display: flex !important;
             flex-direction: row !important;
@@ -64,6 +59,7 @@ st.markdown("""
             width: 100% !important;
             margin-bottom: 8px !important;
         }
+
         .team-name {
             font-size: 13px !important;
             font-weight: 700 !important;
@@ -75,19 +71,42 @@ st.markdown("""
         }
         .team-name-left { text-align: right !important; }
         .team-name-right { text-align: left !important; }
-        .vs-divider { font-size: 10px !important; color: #ccc !important; }
+
+        .vs-divider { font-size: 10px !important; color: #ccc !important; flex: 0 0 auto !important; }
+
+        /* WYSRODKOWANIE 1x2 na mobile */
+        .inputs-wrap {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+        }
+        
+        div[data-testid="stPills"] {
+            max-width: 100% !important; /* Na mobile niech zajmują tyle ile potrzebują */
+        }
+
+        .score-box-wrap {
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 12px !important;
+            justify-content: center !important;
+        }
+        .score-box-wrap [data-testid="column"] {
+            width: 70px !important;
+            min-width: 70px !important;
+        }
     }
 
-    /* Kafelki 1 X 2 i Inputy */
+    /* Styl kafelków 1 X 2 */
     [data-testid="stBaseButton-pills"] { 
-        border-radius: 4px !important; padding: 2px 10px !important; font-weight: bold !important; 
+        border-radius: 4px !important; padding: 2px 12px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
     }
     [data-testid="stBaseButton-pills"][aria-selected="true"] {
         background-color: #ee4444 !important; color: white !important; border-color: #ee4444 !important;
     }
-    div[data-testid="stTextInput"] input { 
-        text-align: center !important; font-size: 16px !important; font-weight: bold !important; height: 32px !important;
-    }
+    
+    div[data-testid="stTextInput"] input { text-align: center !important; font-size: 18px !important; font-weight: bold !important; }
     .main-title { color: #ee4444; font-size: 42px; font-weight: 800; margin-bottom: -10px; }
 </style>
 """, unsafe_allow_html=True)
@@ -100,10 +119,18 @@ if 'reset_counter' not in st.session_state:
 
 # ----------------- LEAGUE MAPPING -----------------
 LEAGUES = {
-    "England: Premier League": 47, "Poland: Ekstraklasa": 196, "Spain: La Liga": 87,
-    "Germany: Bundesliga": 54, "Italy: Serie A": 55, "France: Ligue 1": 53,
-    "Netherlands: Eredivisie": 57, "Portugal: Primeira Liga": 61, "England: Championship": 48,
-    "Turkey: Süper Lig": 71, "Belgium: Pro League": 51, "Scotland: Premiership": 64
+    "England: Premier League": 47,
+    "Poland: Ekstraklasa": 196,
+    "Spain: La Liga": 87,
+    "Germany: Bundesliga": 54,
+    "Italy: Serie A": 55,
+    "France: Ligue 1": 53,
+    "Netherlands: Eredivisie": 57,
+    "Portugal: Primeira Liga": 61,
+    "England: Championship": 48,
+    "Turkey: Süper Lig": 71,
+    "Belgium: Pro League": 51,
+    "Scotland: Premiership": 64
 }
 
 # ----------------- SIDEBAR -----------------
@@ -123,16 +150,21 @@ if st.sidebar.button("🗑️ Reset FlashCalc", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
+# --- SUPPORT & CONTACT ---
 st.sidebar.divider()
-st.sidebar.header("☕ Support")
+st.sidebar.header("☕ Support & Feedback")
+# ZAKTUALIZOWANY LINK
 st.sidebar.link_button("❤️ Support FlashCalc", "https://buymeacoffee.com/flashcalc1w", use_container_width=True)
 
-with st.sidebar.expander("📬 Contact"):
+with st.sidebar.expander("📬 Contact & Feedback"):
     with st.form("contact_form", clear_on_submit=True):
-        u_nick = st.text_input("Nick/Email:")
+        u_nick = st.text_input("Email/Nick (optional):")
         u_msg = st.text_area("Message:")
-        if st.form_submit_button("Send", use_container_width=True):
-            if u_msg.strip() and send_email(u_msg, u_nick): st.success("Sent! ⚡")
+        if st.form_submit_button("Send to FlashCalc", use_container_width=True):
+            if u_msg.strip():
+                if send_email(u_msg, u_nick): st.success("Sent! ⚡")
+                else: st.error("Error.")
+            else: st.warning("Enter msg.")
 
 # ----------------- DATA FETCHING (TTL 24H) -----------------
 @st.cache_data(ttl=86400)
@@ -147,7 +179,7 @@ def fetch_api_data(lid):
 data_json = fetch_api_data(league_id)
 api_matches = data_json.get("response", {}).get("matches", [])
 
-# ----------------- SIMULATION LOGIC -----------------
+# ----------------- LOGIKA SYMULACJI -----------------
 active_simulations = {}
 rc = st.session_state.reset_counter
 for key, val in st.session_state.items():
@@ -213,10 +245,10 @@ if api_matches:
     with c1:
         st.subheader("📊 Live Standings")
         table_data = generate_table(api_matches, selected_date, active_simulations, table_type, form_limit)
-        if not table_data.empty: st.dataframe(highlight_zones(table_data), use_container_width=True, height=750, hide_index=True)
+        if not table_data.empty: st.dataframe(highlight_zones(table_data), use_container_width=True, height=700, hide_index=True)
     with c2:
         st.subheader("🔮 Simulation Hub")
-        with st.container(height=750, border=True):
+        with st.container(height=700, border=True):
             for m in api_matches:
                 status = m.get('status', {})
                 if not status.get('finished') and not status.get('cancelled'):
@@ -224,23 +256,36 @@ if api_matches:
                     if pd.notnull(m_time) and m_time.date() >= selected_date:
                         h_n, a_n, m_id = m['home']['name'], m['away']['name'], str(m['id'])
                         
-                        st.markdown("<div class='match-row-container'>", unsafe_allow_html=True)
+                        st.markdown("<div class='match-row'>", unsafe_allow_html=True)
+                        st.caption(m_time.strftime('%d.%m'))
                         
-                        # --- DETEKCJA URZĄDZENIA PRZEZ KOLUMNY (Streamlit automatycznie stackuje na mobile) ---
+                        # Team vs Team line
+                        st.markdown(f"""
+                        <div class='teams-one-line'>
+                            <div class='team-name team-name-left'>{h_n}</div>
+                            <div class='vs-divider'>vs</div>
+                            <div class='team-name team-name-right'>{a_n}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.markdown("<div class='inputs-wrap'>", unsafe_allow_html=True)
+                        # --- MOBILE OPTIMIZATION ---
+                        # Zmieniona struktura kolumn na mobile, aby H A i 1x2 były w drugiej linii
                         if sim_mode == "1X2 (Fast)":
-                            # Desktop: [Data | Home vs Away | Pills]
-                            col_a, col_b, col_c = st.columns([0.6, 3, 1.4])
-                            with col_a: st.caption(m_time.strftime('%d.%m'))
-                            with col_b: st.markdown(f"<div class='teams-one-line'><div class='team-name team-name-left'>{h_n}</div><div class='vs-divider'>vs</div><div class='team-name team-name-right'>{a_n}</div></div>", unsafe_allow_html=True)
-                            with col_c: st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
+                            # Centrowanie 1x2 pod nazwami
+                            col1, col2, col3 = st.columns([1, 2, 1])
+                            with col2: st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
                         else:
-                            # Desktop: [Data | Home vs Away | Score H | Score A]
-                            col_a, col_b, col_c, col_d = st.columns([0.6, 2.5, 0.7, 0.7])
-                            with col_a: st.caption(m_time.strftime('%d.%m'))
-                            with col_b: st.markdown(f"<div class='teams-one-line'><div class='team-name team-name-left'>{h_n}</div><div class='vs-divider'>vs</div><div class='team-name team-name-right'>{a_n}</div></div>", unsafe_allow_html=True)
-                            with col_c: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed", placeholder="H")
-                            with col_d: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed", placeholder="A")
-                        
+                            st.markdown("<div class='score-box-wrap'>", unsafe_allow_html=True)
+                            sc1, sc2 = st.columns([1, 1])
+                            # Użycie col1, col2 dla centrowania H A na mobile
+                            mob_sc1, mob_sc2, mob_sc3 = st.columns([1, 2, 1])
+                            with mob_sc2:
+                                in_col1, in_col2 = st.columns(2)
+                                with in_col1: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed", placeholder="H")
+                                with in_col2: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed", placeholder="A")
+                            st.markdown("</div>", unsafe_allow_html=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
                         st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 else:
