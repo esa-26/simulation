@@ -5,7 +5,7 @@ import smtplib
 from datetime import datetime
 from email.mime.text import MIMEText
 
-# ----------------- FUNKCJA WYSYŁANIA MAILOWEJ -----------------
+# ----------------- FUNKCJA WYSYŁANIA MAILA -----------------
 def send_email(user_msg, user_contact):
     msg_content = f"New message from FlashCalc user!\n\nContact: {user_contact}\n\nMessage:\n{user_msg}"
     msg = MIMEText(msg_content)
@@ -23,7 +23,7 @@ def send_email(user_msg, user_contact):
 # ----------------- KONFIGURACJA STRONY -----------------
 st.set_page_config(page_title="FlashCalc - Fast League Simulator", page_icon="⚡", layout="wide")
 
-# ----------------- CSS: ONE-LINE RESPONSIVE DESIGN -----------------
+# ----------------- CSS: ONE-LINE FLEX DESIGN -----------------
 st.markdown("""
 <style>
     /* Desktop layout */
@@ -36,38 +36,43 @@ st.markdown("""
         }
 
         .match-row {
-            padding: 12px 0 !important;
-            border-bottom: 1px solid #f0f0f0 !important;
+            padding: 10px 0 !important;
+            border-bottom: 1px solid #f2f2f2 !important;
             width: 100% !important;
         }
 
-        /* Kontener dla nazw w jednej linii */
+        /* KLUCZ: Wszystko w jednej linii */
         .teams-one-line {
             display: flex !important;
             flex-direction: row !important;
             justify-content: center !important;
             align-items: center !important;
-            gap: 8px !important;
+            gap: 6px !important;
             width: 100% !important;
             margin-bottom: 8px !important;
+            overflow: hidden !important;
         }
 
         .team-name {
-            font-size: 14px !important;
+            font-size: 13px !important;
             font-weight: 700 !important;
-            white-space: nowrap !important;
+            white-space: nowrap !important; /* Zakaz łamania linii */
             overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            max-width: 120px !important; /* Blokada przed rozjeżdżaniem */
+            text-overflow: ellipsis !important; /* Kropki przy długich nazwach */
+            flex: 1 1 auto !important;
+            max-width: 42% !important; /* Żeby vs był zawsze na środku */
         }
+
+        .team-name-left { text-align: right !important; }
+        .team-name-right { text-align: left !important; }
 
         .vs-divider {
-            font-size: 11px !important;
-            color: #bbb !important;
-            font-weight: normal !important;
+            font-size: 10px !important;
+            color: #ccc !important;
+            flex: 0 0 auto !important;
         }
 
-        /* Wyniki obok siebie na mobile */
+        /* Centrowanie przycisków/inputów pod spodem */
         .inputs-wrap {
             display: flex !important;
             justify-content: center !important;
@@ -77,17 +82,17 @@ st.markdown("""
         .score-box-wrap {
             display: flex !important;
             flex-direction: row !important;
-            gap: 15px !important;
+            gap: 12px !important;
         }
         .score-box-wrap [data-testid="column"] {
-            width: 75px !important;
-            min-width: 75px !important;
+            width: 70px !important;
+            min-width: 70px !important;
         }
     }
 
     /* Kafelki 1 X 2 */
     [data-testid="stBaseButton-pills"] { 
-        border-radius: 4px !important; padding: 4px 12px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
+        border-radius: 4px !important; padding: 2px 12px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
     }
     [data-testid="stBaseButton-pills"][aria-selected="true"] {
         background-color: #ee4444 !important; color: white !important; border-color: #ee4444 !important;
@@ -145,7 +150,6 @@ if st.sidebar.button("🗑️ Reset FlashCalc", use_container_width=True):
 # --- SUPPORT & CONTACT ---
 st.sidebar.divider()
 st.sidebar.header("☕ Support & Feedback")
-# AKTUALIZACJA LINKU
 st.sidebar.link_button("❤️ Support FlashCalc", "https://buymeacoffee.com/flashcalc1w", use_container_width=True)
 
 with st.sidebar.expander("📬 Contact & Feedback"):
@@ -158,8 +162,8 @@ with st.sidebar.expander("📬 Contact & Feedback"):
                 else: st.error("Error.")
             else: st.warning("Enter msg.")
 
-# ----------------- DATA FETCHING (ZMIENIONY TTL) -----------------
-@st.cache_data(ttl=86400) # 24 GODZINY CACHE
+# ----------------- DATA FETCHING (TTL 24H) -----------------
+@st.cache_data(ttl=86400)
 def fetch_api_data(lid):
     url = f"https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league?leagueid={lid}"
     headers = {"x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com", "x-rapidapi-key": st.secrets["RAPIDAPI_KEY"]}
@@ -254,9 +258,9 @@ if api_matches:
                         # --- UKŁAD JEDNOLINIOWY (TEAM vs TEAM) ---
                         st.markdown(f"""
                         <div class='teams-one-line'>
-                            <div class='team-name'>{h_n}</div>
+                            <div class='team-name team-name-left'>{h_n}</div>
                             <div class='vs-divider'>vs</div>
-                            <div class='team-name'>{a_n}</div>
+                            <div class='team-name team-name-right'>{a_n}</div>
                         </div>
                         """, unsafe_allow_html=True)
                         
