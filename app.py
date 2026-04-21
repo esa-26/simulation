@@ -23,27 +23,27 @@ def send_email(user_msg, user_contact):
 # ----------------- KONFIGURACJA STRONY -----------------
 st.set_page_config(page_title="FlashCalc - Fast League Simulator", page_icon="⚡", layout="wide")
 
-# ----------------- CSS: ADVANCED RESPONSIVE DESIGN -----------------
+# ----------------- CSS: ULTRARESPONSIVE FIX -----------------
 st.markdown("""
 <style>
     /* Desktop layout */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0px !important; }
     
-    /* MOBILE RESPONSIVENESS */
+    /* MOBILE RESPONSIVENESS (Screens < 768px) */
     @media (max-width: 768px) {
-        /* Główne kolumny: Tabela -> Symulator (pod spodem) */
+        /* Główne kolumny: Tabela pod Symulatorem */
         .main-container [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
         }
 
-        /* Sekcja pojedynczego meczu w symulacji */
+        /* Sekcja pojedynczego meczu - układ pionowy */
         .match-row [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
-            padding: 15px 0 !important;
-            border-bottom: 1px solid #eee !important;
+            padding: 10px 0 !important;
+            border-bottom: 1px solid #f0f0f0 !important;
         }
 
-        /* Wymuszenie szerokości 100% dla elementów w pionie */
+        /* Wymuszenie centrowania wszystkiego na mobile */
         .match-row [data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
@@ -51,21 +51,26 @@ st.markdown("""
             margin-bottom: 5px !important;
         }
 
-        /* Centrowanie tekstów drużyn na mobile */
         .team-text {
             text-align: center !important;
-            padding: 2px 0 !important;
-            width: 100% !important;
+            font-size: 16px !important;
+            padding: 4px 0 !important;
         }
-        
-        /* Specjalny układ dla pól tekstowych (wynik obok siebie na mobile) */
-        .score-inputs [data-testid="stHorizontalBlock"] {
+
+        /* Specjalny kontener na pola wyniku (H : A) żeby nie nachodziły na siebie */
+        .score-wrap {
+            display: flex !important;
             flex-direction: row !important;
             justify-content: center !important;
+            align-items: center !important;
+            gap: 15px !important; /* Odstęp między polami */
+            width: 100% !important;
+            margin-top: 5px !important;
         }
-        .score-inputs [data-testid="column"] {
-            width: 80px !important;
-            min-width: 80px !important;
+        
+        .score-wrap [data-testid="column"] {
+            width: 70px !important; /* Stała szerokość pola na mobile */
+            min-width: 70px !important;
         }
     }
 
@@ -88,7 +93,13 @@ st.markdown("""
         min-width: 140px !important;
     }
 
-    div[data-testid="stTextInput"] input { text-align: center !important; }
+    /* Wyśrodkowanie tekstu w polach input */
+    div[data-testid="stTextInput"] input { 
+        text-align: center !important; 
+        font-size: 18px !important;
+        font-weight: bold !important;
+    }
+    
     .main-title { color: #ee4444; font-size: 42px; font-weight: 800; margin-bottom: -10px; }
 </style>
 """, unsafe_allow_html=True)
@@ -144,8 +155,7 @@ with st.sidebar.expander("📬 Contact & Feedback"):
                 with st.spinner("Sending..."):
                     if send_email(user_message, user_contact):
                         st.success("Message sent! ⚡")
-                    else:
-                        st.error("Error sending message.")
+                    else: st.error("Error sending message.")
             else: st.warning("Enter message.")
 
 # ----------------- DATA FETCHING (API) -----------------
@@ -164,7 +174,7 @@ def fetch_api_data(lid):
 data_json = fetch_api_data(league_id)
 api_matches = data_json.get("response", {}).get("matches", [])
 
-# ----------------- LOGIKA SYMULACJI -----------------
+# ----------------- SIMULATION LOGIC -----------------
 active_simulations = {}
 rc = st.session_state.reset_counter
 
@@ -234,7 +244,6 @@ def highlight_zones(res_df):
 
 # ----------------- MAIN VIEW -----------------
 if api_matches:
-    # GŁÓWNY WRAPPER DLA KOLUMN
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     c1, c2 = st.columns([1.5, 1.2])
     
@@ -264,19 +273,21 @@ if api_matches:
                             with col4: st.markdown(f"<div class='team-text' style='text-align:left; font-weight:bold;'>{a_name}</div>", unsafe_allow_html=True)
                             with col3: st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
                         
-                        else: # EXACT SCORE
-                            # Wrapper score-inputs pozwala na trzymanie H i A obok siebie nawet na mobile
-                            st.markdown("<div class='score-inputs'>", unsafe_allow_html=True)
-                            col1, col2, col3, col4, col5, col6 = st.columns([0.6, 2.5, 0.8, 0.8, 2.5, 0.2])
-                            with col1: st.caption(match_time.strftime('%d.%m'))
-                            with col2: st.markdown(f"<div class='team-text' style='text-align:right; font-weight:bold;'>{h_name}</div>", unsafe_allow_html=True)
-                            with col5: st.markdown(f"<div class='team-text' style='text-align:left; font-weight:bold;'>{a_name}</div>", unsafe_allow_html=True)
-                            with col3: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed")
-                            with col4: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed")
+                        else: # EXACT SCORE (Poprawiony układ mobile)
+                            # Data i kluby najpierw
+                            col_date, col_h, col_a = st.columns([0.6, 3, 3])
+                            with col_date: st.caption(match_time.strftime('%d.%m'))
+                            with col_h: st.markdown(f"<div class='team-text' style='text-align:right; font-weight:bold;'>{h_name}</div>", unsafe_allow_html=True)
+                            with col_a: st.markdown(f"<div class='team-text' style='text-align:left; font-weight:bold;'>{a_name}</div>", unsafe_allow_html=True)
+                            
+                            # Kontener na wyniki - na mobile te dwie kolumny zostaną obok siebie dzięki .score-wrap
+                            st.markdown("<div class='score-wrap'>", unsafe_allow_html=True)
+                            s_col1, s_col2 = st.columns([1, 1])
+                            with s_col1: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed", placeholder="H")
+                            with s_col2: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed", placeholder="A")
                             st.markdown("</div>", unsafe_allow_html=True)
                         
                         st.markdown("</div>", unsafe_allow_html=True)
-    
-    st.markdown("</div>", unsafe_allow_html=True) # Koniec main-container
+    st.markdown("</div>", unsafe_allow_html=True)
 else:
     st.warning("No live data available.")
