@@ -23,93 +23,80 @@ def send_email(user_msg, user_contact):
 # ----------------- KONFIGURACJA STRONY -----------------
 st.set_page_config(page_title="FlashCalc - Fast League Simulator", page_icon="⚡", layout="wide")
 
-# ----------------- CSS: ULTRA-CLEAN MOBILE DESIGN -----------------
+# ----------------- CSS: ONE-LINE RESPONSIVE DESIGN -----------------
 st.markdown("""
 <style>
-    /* Desktop layout - utrzymuje tabelę i symulator obok siebie */
+    /* Desktop layout */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0px !important; }
     
-    /* MOBILE RESPONSIVENESS (Ekrany < 768px) */
+    /* MOBILE RESPONSIVENESS */
     @media (max-width: 768px) {
-        /* Tabela pod symulatorem */
         .main-container [data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
         }
 
-        /* Wiersz meczu zamienia się w stos */
         .match-row {
-            padding: 15px 5px !important;
+            padding: 12px 0 !important;
             border-bottom: 1px solid #f0f0f0 !important;
+            width: 100% !important;
+        }
+
+        /* Kontener dla nazw w jednej linii */
+        .teams-one-line {
             display: flex !important;
-            flex-direction: column !important;
+            flex-direction: row !important;
+            justify-content: center !important;
             align-items: center !important;
-        }
-
-        /* Każda kolumna wewnątrz meczu na 100% szerokości */
-        .match-row [data-testid="stHorizontalBlock"] {
-            flex-direction: column !important;
+            gap: 8px !important;
             width: 100% !important;
+            margin-bottom: 8px !important;
         }
 
-        .match-row [data-testid="column"] {
-            width: 100% !important;
-            min-width: 100% !important;
-            text-align: center !important;
-            margin-bottom: 5px !important;
-        }
-
-        /* Stylistyka nazw drużyn na mobile */
-        .team-label {
-            display: block !important;
-            font-size: 16px !important;
+        .team-name {
+            font-size: 14px !important;
             font-weight: 700 !important;
-            margin: 2px 0 !important;
-            line-height: 1.2 !important;
-            text-align: center !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            max-width: 120px !important; /* Blokada przed rozjeżdżaniem */
         }
 
         .vs-divider {
-            font-size: 12px !important;
-            color: #aaa !important;
-            margin: 0 !important;
-            text-align: center !important;
+            font-size: 11px !important;
+            color: #bbb !important;
+            font-weight: normal !important;
         }
 
-        /* Kontener na przyciski 1X2 i wyniki Exact Score */
+        /* Wyniki obok siebie na mobile */
         .inputs-wrap {
             display: flex !important;
             justify-content: center !important;
             width: 100% !important;
-            margin-top: 10px !important;
         }
         
-        /* Specyficzne wymiary dla Exact Score */
         .score-box-wrap {
             display: flex !important;
             flex-direction: row !important;
             gap: 15px !important;
-            justify-content: center !important;
         }
         .score-box-wrap [data-testid="column"] {
-            width: 80px !important;
-            min-width: 80px !important;
+            width: 75px !important;
+            min-width: 75px !important;
         }
     }
 
-    /* Kafelki 1 X 2 (Pills) */
+    /* Kafelki 1 X 2 */
     [data-testid="stBaseButton-pills"] { 
-        border-radius: 4px !important; padding: 4px 15px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
+        border-radius: 4px !important; padding: 4px 12px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
     }
     [data-testid="stBaseButton-pills"][aria-selected="true"] {
         background-color: #ee4444 !important; color: white !important; border-color: #ee4444 !important;
     }
     
-    /* Wygląd pól tekstowych (Exact Score) */
     div[data-testid="stTextInput"] input { 
         text-align: center !important; 
         font-size: 18px !important; 
         font-weight: bold !important;
-        background-color: #fcfcfc !important;
     }
     
     .main-title { color: #ee4444; font-size: 42px; font-weight: 800; margin-bottom: -10px; }
@@ -157,7 +144,10 @@ if st.sidebar.button("🗑️ Reset FlashCalc", use_container_width=True):
 
 # --- SUPPORT & CONTACT ---
 st.sidebar.divider()
-st.sidebar.link_button("❤️ Support FlashCalc", "https://www.buymeacoffee.com/flashcalc1w", use_container_width=True)
+st.sidebar.header("☕ Support & Feedback")
+# AKTUALIZACJA LINKU
+st.sidebar.link_button("❤️ Support FlashCalc", "https://buymeacoffee.com/flashcalc1w", use_container_width=True)
+
 with st.sidebar.expander("📬 Contact & Feedback"):
     with st.form("contact_form", clear_on_submit=True):
         u_nick = st.text_input("Email/Nick (optional):")
@@ -168,8 +158,8 @@ with st.sidebar.expander("📬 Contact & Feedback"):
                 else: st.error("Error.")
             else: st.warning("Enter msg.")
 
-# ----------------- DATA FETCHING (API) -----------------
-@st.cache_data(ttl=86400)
+# ----------------- DATA FETCHING (ZMIENIONY TTL) -----------------
+@st.cache_data(ttl=86400) # 24 GODZINY CACHE
 def fetch_api_data(lid):
     url = f"https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league?leagueid={lid}"
     headers = {"x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com", "x-rapidapi-key": st.secrets["RAPIDAPI_KEY"]}
@@ -243,7 +233,7 @@ def highlight_zones(res_df):
 # ----------------- MAIN VIEW -----------------
 if api_matches:
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    c1, c2 = st.columns([1.4, 1.2])
+    c1, c2 = st.columns([1.5, 1.2])
     with c1:
         st.subheader("📊 Live Standings")
         table_data = generate_table(api_matches, selected_date, active_simulations, table_type, form_limit)
@@ -260,9 +250,15 @@ if api_matches:
                         
                         st.markdown("<div class='match-row'>", unsafe_allow_html=True)
                         st.caption(m_time.strftime('%d.%m'))
-                        st.markdown(f"<div class='team-label'>{h_n}</div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='vs-divider'>vs</div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='team-label'>{a_n}</div>", unsafe_allow_html=True)
+                        
+                        # --- UKŁAD JEDNOLINIOWY (TEAM vs TEAM) ---
+                        st.markdown(f"""
+                        <div class='teams-one-line'>
+                            <div class='team-name'>{h_n}</div>
+                            <div class='vs-divider'>vs</div>
+                            <div class='team-name'>{a_n}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
                         
                         st.markdown("<div class='inputs-wrap'>", unsafe_allow_html=True)
                         if sim_mode == "1X2 (Fast)":
