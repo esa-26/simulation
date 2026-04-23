@@ -8,7 +8,7 @@ import streamlit.components.v1 as components
 
 # ----------------- 1. GOOGLE ANALYTICS (WSTRZYKNIĘCIE) -----------------
 # Wklej tutaj swój identyfikator (np. G-S0HCG6VSHG)
-GA_ID = "TWÓJ-ID-GA4" 
+GA_ID = "G-S0HCG6VSHG" 
 components.html(
     f"""
     <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
@@ -237,11 +237,19 @@ def generate_table(matches_list, date_limit, sym, t_type, f_limit, lid):
         if t_type in ["All Games", "Home"]: add_stats(m['h'], m['gh'], m['ga'])
         if t_type in ["All Games", "Away"]: add_stats(m['a'], m['ga'], m['gh'])
     
-    # --- PENALTY ENGINE (Only for Ekstraklasa ID 196) ---
+    # --- PENALTY ENGINE ---
+    # 1. Polska Ekstraklasa (ID 196)
     if lid == 196:
-        for team_name in stats:
-            if "Lechia" in team_name:
-                stats[team_name]['Pts'] -= 5
+        for t in stats:
+            if "Lechia" in t: stats[t]['Pts'] -= 5
+
+    # 2. England Championship (ID 48)
+    if lid == 48:
+        for t in stats:
+            if "Leicester" in t: 
+                stats[t]['Pts'] -= 6
+            if "Sheff Wed" in t: # Obsługuje "Sheffield Utd" lub "Sheffield United"
+                stats[t]['Pts'] -= 18
 
     df = pd.DataFrame.from_dict(stats, orient='index').reset_index()
     if not df.empty:
