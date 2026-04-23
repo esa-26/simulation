@@ -4,6 +4,23 @@ import requests
 import smtplib
 from datetime import datetime
 from email.mime.text import MIMEText
+import streamlit.components.v1 as components
+
+# ----------------- 1. GOOGLE ANALYTICS (WSTRZYKNIĘCIE) -----------------
+# Wklej tutaj swój identyfikator (np. G-S0HCG6VSHG)
+GA_ID = "G-S0HCG6VSHG" 
+components.html(
+    f"""
+    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){{dataLayer.push(arguments);}}
+      gtag('js', new Date());
+      gtag('config', '{GA_ID}');
+    </script>
+    """,
+    height=0,
+)
 
 # ----------------- FUNKCJA WYSYŁANIA MAILA -----------------
 def send_email(user_msg, user_contact):
@@ -26,26 +43,87 @@ st.set_page_config(page_title="FlashCalc - Fast League Simulator", page_icon="�
 # ----------------- CSS: SMART-STACK DESIGN -----------------
 st.markdown("""
 <style>
+    /* Desktop: Kondensacja wierszy */
     [data-testid="stHorizontalBlock"] { align-items: center !important; gap: 0px !important; }
-    .match-row-container { padding: 6px 0 !important; border-bottom: 1px solid #f2f2f2 !important; width: 100% !important; }
-    .teams-inline-container { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 8px !important; overflow: hidden !important; }
-    .team-name { font-size: 14px !important; font-weight: 700 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; flex: 0 1 auto !important; }
-    .vs-divider { font-size: 11px !important; color: #bbb !important; flex: 0 0 auto !important; }
     
-    /* Dodatki dla FT */
-    .ft-label { background: #f0f0f0; color: #666; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 800; margin-right: 8px; }
-    .live-score { font-weight: 800; color: #ee4444; font-size: 14px; margin: 0 10px; min-width: 40px; text-align: center; }
+    .match-row-container {
+        padding: 6px 0 !important;
+        border-bottom: 1px solid #f2f2f2 !important;
+        width: 100% !important;
+    }
 
+    /* Układ nazw drużyn (zawsze w jednej linii) */
+    .teams-inline-container {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 8px !important;
+        overflow: hidden !important;
+    }
+
+    .team-name {
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        flex: 0 1 auto !important;
+    }
+
+    .vs-divider { font-size: 11px !important; color: #bbb !important; flex: 0 0 auto !important; }
+
+    /* Fix dla przycisków na Desktopie */
     @media (min-width: 769px) {
-        div[data-testid="stPills"] { justify-content: flex-end !important; max-width: 160px !important; margin-left: auto !important; }
+        div[data-testid="stPills"] {
+            justify-content: flex-end !important;
+            max-width: 160px !important;
+            margin-left: auto !important;
+        }
+        .score-box-desktop {
+            display: flex !important;
+            justify-content: flex-end !important;
+            gap: 10px !important;
+        }
     }
+
+    /* MOBILE: Układ dwuliniowy */
     @media (max-width: 768px) {
-        .main-container [data-testid="stHorizontalBlock"] { flex-direction: column !important; }
-        .teams-inline-container { justify-content: center !important; margin-bottom: 8px !important; }
-        .inputs-wrap-mobile { display: flex !important; justify-content: center !important; width: 100% !important; margin: 0 auto !important; }
+        .main-container [data-testid="stHorizontalBlock"] {
+            flex-direction: column !important;
+        }
+        
+        .teams-inline-container {
+            justify-content: center !important;
+            margin-bottom: 8px !important;
+        }
+
+        .inputs-wrap-mobile {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+        }
+
+        .score-box-mobile {
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 12px !important;
+            justify-content: center !important;
+        }
+        
+        .score-box-mobile [data-testid="column"] {
+            width: 75px !important;
+            min-width: 75px !important;
+        }
     }
-    [data-testid="stBaseButton-pills"] { border-radius: 4px !important; padding: 2px 12px !important; font-weight: bold !important; border: 1px solid #d1d5db !important; }
-    [data-testid="stBaseButton-pills"][aria-selected="true"] { background-color: #ee4444 !important; color: white !important; border-color: #ee4444 !important; }
+
+    [data-testid="stBaseButton-pills"] { 
+        border-radius: 4px !important; padding: 2px 12px !important; font-weight: bold !important; border: 1px solid #d1d5db !important;
+    }
+    [data-testid="stBaseButton-pills"][aria-selected="true"] {
+        background-color: #ee4444 !important; color: white !important; border-color: #ee4444 !important;
+    }
+    
     div[data-testid="stTextInput"] input { text-align: center !important; font-size: 18px !important; font-weight: bold !important; }
     .main-title { color: #ee4444; font-size: 42px; font-weight: 800; margin-bottom: -10px; }
 </style>
@@ -59,10 +137,19 @@ if 'reset_counter' not in st.session_state:
 
 # ----------------- LEAGUE MAPPING -----------------
 LEAGUES = {
-    "England: Premier League": 47, "Poland: Ekstraklasa": 196, "Poland: 1. Liga": 197, 
-    "Spain: La Liga": 87, "Germany: Bundesliga": 54, "Italy: Serie A": 55, "France: Ligue 1": 53,
-    "Netherlands: Eredivisie": 57, "Portugal: Primeira Liga": 61, "England: Championship": 48,
-    "Turkey: Süper Lig": 71, "Scotland: Premiership": 64
+    "England: Premier League": 47, 
+    "Poland: Ekstraklasa": 196, 
+    "Poland: 1. Liga": 197, 
+    "Spain: La Liga": 87,
+    "Germany: Bundesliga": 54, 
+    "Italy: Serie A": 55, 
+    "France: Ligue 1": 53,
+    "Netherlands: Eredivisie": 57, 
+    "Portugal: Primeira Liga": 61, 
+    "England: Championship": 48,
+    "Turkey: Süper Lig": 71, 
+    "Belgium: Pro League": 51, 
+    "Scotland: Premiership": 64
 }
 
 # ----------------- SIDEBAR -----------------
@@ -75,12 +162,23 @@ st.sidebar.header("⚙️ Simulation Settings")
 selected_date = st.sidebar.date_input("Standings as of:", datetime.now().date())
 sim_mode = st.sidebar.radio("🕹️ Input Mode:", ["1X2 (Fast)", "Exact Score"])
 table_type = st.sidebar.radio("🔍 View:", ["All Games", "Home", "Away"])
-form_limit = st.sidebar.number_input("Last X Matches Only:", min_value=0, max_value=46, value=0)
+form_limit = st.sidebar.number_input("Last X Matches Only:", min_value=0, max_value=38, value=0)
 
 if st.sidebar.button("🗑️ Reset FlashCalc", use_container_width=True):
     st.session_state.reset_counter += 1
     st.cache_data.clear()
     st.rerun()
+
+st.sidebar.divider()
+st.sidebar.header("☕ Support")
+st.sidebar.link_button("❤️ Support FlashCalc", "https://buymeacoffee.com/flashcalc1w", use_container_width=True)
+
+with st.sidebar.expander("📬 Contact"):
+    with st.form("contact_form", clear_on_submit=True):
+        u_nick = st.text_input("Nick/Email:")
+        u_msg = st.text_area("Message:")
+        if st.form_submit_button("Send", use_container_width=True):
+            if u_msg.strip() and send_email(u_msg, u_nick): st.success("Sent! ⚡")
 
 # ----------------- DATA FETCHING (TTL 24H) -----------------
 @st.cache_data(ttl=86400)
@@ -105,27 +203,23 @@ for key, val in st.session_state.items():
             if val == "1": active_simulations[m_id] = {'h': 1, 'a': 0}
             elif val == "X": active_simulations[m_id] = {'h': 0, 'a': 0}
             elif val == "2": active_simulations[m_id] = {'h': 0, 'a': 1}
+        elif key.startswith('h_') and str(val).isdigit():
+            val_a = st.session_state.get(f'a_{m_id}_{rc}', '')
+            if str(val_a).isdigit():
+                active_simulations[m_id] = {'h': int(val), 'a': int(val_a)}
 
-# ----------------- STANDINGS ENGINE (TYLKO FT I SYMULACJE) -----------------
+# ----------------- STANDINGS ENGINE (WITH PENALTY) -----------------
 def generate_table(matches_list, date_limit, sym, t_type, f_limit, lid):
     stats = {}; processed = []
     for m in matches_list:
-        st_obj = m.get('status', {})
-        
-        # TWOJA POPRAWKA: Ignoruj wszystko co nie jest czystym FT lub symulacją
-        if st_obj.get('short') in ['Ab', 'PP', 'Can', 'Postp']:
-            continue
-            
         m_id = str(m.get('id', ''))
+        st_obj = m.get('status', {})
         if not st_obj.get('utcTime'): continue
         m_date = pd.to_datetime(st_obj['utcTime'], errors='coerce')
         gh, ga = None, None
-        
-        if m_id in sym: 
-            gh, ga = sym[m_id]['h'], sym[m_id]['a']
+        if m_id in sym: gh, ga = sym[m_id]['h'], sym[m_id]['a']
         elif m_date.date() <= date_limit and st_obj.get('finished'):
             gh, ga = m.get('home', {}).get('score'), m.get('away', {}).get('score')
-            
         if gh is not None and ga is not None:
             processed.append({'d': m_date, 'h': m['home']['name'], 'a': m['away']['name'], 'gh': gh, 'ga': ga})
     
@@ -144,13 +238,18 @@ def generate_table(matches_list, date_limit, sym, t_type, f_limit, lid):
         if t_type in ["All Games", "Away"]: add_stats(m['a'], m['ga'], m['gh'])
     
     # --- PENALTY ENGINE ---
-    if lid == 196: # Ekstraklasa
-        for team_name in stats:
-            if "Lechia" in team_name: stats[team_name]['Pts'] -= 5
-    if lid == 48: # Championship
-        for team_name in stats:
-            if "Leicester" in team_name: stats[team_name]['Pts'] -= 6
-            if "Sheffield" in team_name: stats[team_name]['Pts'] -= 18
+    # 1. Polska Ekstraklasa (ID 196)
+    if lid == 196:
+        for t in stats:
+            if "Lechia" in t: stats[t]['Pts'] -= 5
+
+    # 2. England Championship (ID 48)
+    if lid == 48:
+        for t in stats:
+            if "Leicester" in t: 
+                stats[t]['Pts'] -= 6
+            if "Sheff Wed" in t: # Obsługuje "Sheffield Utd" lub "Sheffield United"
+                stats[t]['Pts'] -= 18
 
     df = pd.DataFrame.from_dict(stats, orient='index').reset_index()
     if not df.empty:
@@ -177,6 +276,7 @@ if api_matches:
     c1, c2 = st.columns([1.5, 1.2])
     with c1:
         st.subheader("📊 Live Standings")
+        # Przekazujemy league_id do funkcji generującej tabelę
         table_data = generate_table(api_matches, selected_date, active_simulations, table_type, form_limit, league_id)
         if not table_data.empty: st.dataframe(highlight_zones(table_data), use_container_width=True, height=750, hide_index=True)
     with c2:
@@ -184,33 +284,34 @@ if api_matches:
         with st.container(height=750, border=True):
             for m in api_matches:
                 status = m.get('status', {})
-                
-                # TWOJA POPRAWKA: Ukryj "śmieciowe" statusy w hubie
-                if status.get('short') in ['Ab', 'PP', 'Can', 'Postp']:
-                    continue
-                    
-                m_time = pd.to_datetime(status.get('utcTime'), errors='coerce')
-                h_n, a_n, m_id = m['home']['name'], m['away']['name'], str(m['id'])
-                
-                st.markdown("<div class='match-row-container'>", unsafe_allow_html=True)
-                col_left, col_right = st.columns([4, 2])
-                with col_left:
-                    if status.get('finished'):
-                        score_str = f"{m['home']['score']} - {m['away']['score']}"
-                        st.markdown(f"""<div class='teams-inline-container'><span class='ft-label'>FT</span><span class='team-name'>{h_n}</span><span class='live-score'>{score_str}</span><span class='team-name'>{a_n}</span></div>""", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"""<div class='teams-inline-container'><span style='color:#888; font-size:12px;'>{m_time.strftime('%d.%m') if m_time else ''}</span><span class='team-name'>{h_n}</span><span class='vs-divider'>vs</span><span class='team-name'>{a_n}</span></div>""", unsafe_allow_html=True)
-                
-                with col_right:
-                    if not status.get('finished') and not status.get('cancelled'):
-                        if sim_mode == "1X2 (Fast)":
-                            st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
-                        else:
-                            h_col, a_col = st.columns(2)
-                            with h_col: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed")
-                            with a_col: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed")
-                    elif status.get('finished'):
-                        st.caption("Settled")
-                st.markdown("</div>", unsafe_allow_html=True)
+                if not status.get('finished') and not status.get('cancelled'):
+                    m_time = pd.to_datetime(status.get('utcTime'), errors='coerce')
+                    if pd.notnull(m_time) and m_time.date() >= selected_date:
+                        h_n, a_n, m_id = m['home']['name'], m['away']['name'], str(m['id'])
+                        
+                        st.markdown("<div class='match-row-container'>", unsafe_allow_html=True)
+                        col_left, col_right = st.columns([4, 2])
+                        with col_left:
+                            st.markdown(f"""
+                            <div class='teams-inline-container'>
+                                <span style='color:#888; font-size:12px;'>{m_time.strftime('%d.%m')}</span>
+                                <span class='team-name'>{h_n}</span>
+                                <span class='vs-divider'>vs</span>
+                                <span class='team-name'>{a_n}</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        with col_right:
+                            if sim_mode == "1X2 (Fast)":
+                                st.markdown("<div class='inputs-wrap-mobile'>", unsafe_allow_html=True)
+                                st.pills("1X2", ["1", "X", "2"], key=f"1x2_{m_id}_{rc}", label_visibility="collapsed")
+                                st.markdown("</div>", unsafe_allow_html=True)
+                            else:
+                                st.markdown("<div class='score-box-mobile'>", unsafe_allow_html=True)
+                                h_col, a_col = st.columns(2)
+                                with h_col: st.text_input("H", key=f"h_{m_id}_{rc}", label_visibility="collapsed", placeholder="H")
+                                with a_col: st.text_input("A", key=f"a_{m_id}_{rc}", label_visibility="collapsed", placeholder="A")
+                                st.markdown("</div>", unsafe_allow_html=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 else:
     st.warning("No data available.")
